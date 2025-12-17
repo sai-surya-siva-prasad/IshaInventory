@@ -1,16 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-import { Users, Settings, LogOut, User, MapPin, Phone } from 'lucide-react';
+import { Users, Settings, LogOut, User, MapPin, Phone, Edit3 } from 'lucide-react';
 import { StorageService, AuthService, supabase } from './services/storage';
 import { Item, Volunteer, Assignment, UserProfile, Category } from './types';
 import { InventoryList } from './components/InventoryList';
 import { VolunteerList } from './components/VolunteerList';
 import { Auth } from './components/Auth';
 import { CubeLogo } from './components/ui/Logo';
+import { Modal } from './components/ui/Modal';
+import { Button } from './components/ui/Button';
+import { SplashScreen } from './components/SplashScreen';
 
 type Tab = 'inventory' | 'people' | 'settings';
 
 const App: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('inventory');
@@ -20,6 +24,13 @@ const App: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+  
+  // Profile editing state
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
 
   useEffect(() => {
     AuthService.getSession().then(s => {
@@ -29,17 +40,30 @@ const App: React.FC = () => {
         AuthService.getProfile(s.user.id).then(setProfile);
       }
       else setLoading(false);
+    }).catch(err => {
+      console.error('Error getting session:', err);
+      setLoading(false);
     });
 
-    const { data: { subscription } } = supabase?.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) {
-        loadData();
-        AuthService.getProfile(session.user.id).then(setProfile);
-      }
-    }) || { data: { subscription: null } };
+    let subscription: any = null;
+    if (supabase) {
+      const authStateChange = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+        if (session) {
+          loadData();
+          AuthService.getProfile(session.user.id).then(setProfile);
+        } else {
+          setLoading(false);
+        }
+      });
+      subscription = authStateChange?.data?.subscription;
+    }
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, []);
 
   const loadData = async () => {
@@ -101,6 +125,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      await StorageService.deleteCategory(id);
+      const updatedCategories = await StorageService.getCategories();
+      setCategories(updatedCategories);
+      showToast('Category deleted');
+    } catch (err) {
+      showToast('Failed to delete category', 'error');
+    }
+  };
+
   const handleDeleteItem = async (id: string) => {
     try {
       await StorageService.deleteItem(id);
@@ -110,6 +145,46 @@ const App: React.FC = () => {
       showToast('Failed to remove item', 'error');
     }
   };
+
+  const openEditProfile = () => {
+    setEditFirstName(profile?.first_name || '');
+    setEditLastName(profile?.last_name || '');
+    setEditPhone(profile?.phone || '');
+    setEditAddress(profile?.address || '');
+    setIsEditProfileOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!session?.user?.id) return;
+    try {
+      await AuthService.updateProfile(session.user.id, {
+        first_name: editFirstName.trim(),
+        last_name: editLastName.trim(),
+        phone: editPhone.trim(),
+        address: editAddress.trim()
+      });
+      const updatedProfile = await AuthService.getProfile(session.user.id);
+      setProfile(updatedProfile);
+      setIsEditProfileOpen(false);
+      showToast('Profile updated successfully');
+    } catch (err) {
+      showToast('Failed to update profile', 'error');
+    }
+  };
+
+  const handleUpdateVolunteer = async (volunteer: Volunteer) => {
+    try {
+      await StorageService.saveVolunteer(volunteer);
+      await loadData();
+      showToast('Member profile updated');
+    } catch (err) {
+      showToast('Failed to update member', 'error');
+    }
+  };
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
 
   if (!session && !loading) {
     return <Auth onAuthComplete={() => loadData()} />;
@@ -165,6 +240,7 @@ const App: React.FC = () => {
                    })}
                    onAddCategory={handleAddCategory}
                    onUpdateCategory={handleUpdateCategory}
+                   onDeleteCategory={handleDeleteCategory}
                  />
               </div>
             )}
@@ -176,6 +252,7 @@ const App: React.FC = () => {
                    assignments={assignments}
                    items={items}
                    onAddVolunteer={(v) => StorageService.saveVolunteer(v).then(() => loadData())}
+                   onUpdateVolunteer={handleUpdateVolunteer}
                    onDeleteVolunteer={(id) => StorageService.deleteVolunteer(id).then(() => loadData())}
                    onReturnItem={(id) => StorageService.deleteAssignment(id).then(() => loadData())}
                  />
@@ -189,10 +266,16 @@ const App: React.FC = () => {
                     <div className="w-16 h-16 bg-iosBlue/10 rounded-full flex items-center justify-center text-iosBlue">
                       <User size={32} />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-[20px] font-bold text-black">{profile?.first_name} {profile?.last_name}</h3>
                       <p className="text-iosGray text-[15px]">{session?.user?.email}</p>
                     </div>
+                    <button 
+                      onClick={openEditProfile}
+                      className="w-10 h-10 bg-iosBlue/10 rounded-full flex items-center justify-center text-iosBlue active:bg-iosBlue/20 transition-colors"
+                    >
+                      <Edit3 size={18} />
+                    </button>
                   </div>
                   <div className="divide-y divide-iosDivider/20">
                     <div className="px-6 py-4 flex items-center gap-4">
@@ -239,6 +322,55 @@ const App: React.FC = () => {
           {toast.msg}
         </div>
       )}
+
+      {/* Edit Profile Modal */}
+      <Modal isOpen={isEditProfileOpen} onClose={() => setIsEditProfileOpen(false)} title="Edit Profile">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">First Name</label>
+              <input 
+                className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
+                value={editFirstName}
+                onChange={(e) => setEditFirstName(e.target.value)}
+                placeholder="First Name"
+              />
+            </div>
+            <div>
+              <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Last Name</label>
+              <input 
+                className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                placeholder="Last Name"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Phone Number</label>
+            <input 
+              className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              placeholder="Phone Number"
+              type="tel"
+            />
+          </div>
+          <div>
+            <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Address</label>
+            <textarea 
+              className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20 resize-none"
+              value={editAddress}
+              onChange={(e) => setEditAddress(e.target.value)}
+              placeholder="Enter your address"
+              rows={3}
+            />
+          </div>
+          <Button fullWidth onClick={handleSaveProfile} disabled={!editFirstName || !editLastName}>
+            Save Changes
+          </Button>
+        </div>
+      </Modal>
 
       <nav className="fixed bottom-0 left-0 w-full bg-white/90 ios-blur border-t border-iosDivider z-50 safe-bottom">
         <div className="flex h-[49px]">

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Volunteer, Assignment, Item } from '../types';
-import { Search, Plus, Phone, Trash2, MapPin, User, ChevronRight } from 'lucide-react';
+import { Search, Plus, Phone, Trash2, MapPin, User, ChevronRight, Edit3 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -10,6 +10,7 @@ interface VolunteerListProps {
   assignments: Assignment[];
   items: Item[];
   onAddVolunteer: (volunteer: Partial<Volunteer>) => void;
+  onUpdateVolunteer: (volunteer: Volunteer) => void;
   onDeleteVolunteer: (volunteerId: string) => void;
   onReturnItem: (assignmentId: string) => void;
 }
@@ -33,17 +34,26 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
   assignments,
   items,
   onAddVolunteer,
+  onUpdateVolunteer,
   onDeleteVolunteer,
   onReturnItem
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   
+  // Add new member form state
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newAddress, setNewAddress] = useState('');
+
+  // Edit member form state
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAddress, setEditAddress] = useState('');
 
   const filteredVolunteers = volunteers.filter(v => 
     `${v.first_name} ${v.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,6 +86,34 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
       onDeleteVolunteer(selectedVolunteer.id);
       setSelectedVolunteer(null);
     }
+  };
+
+  const openEditModal = () => {
+    if (!selectedVolunteer) return;
+    setEditFirstName(selectedVolunteer.first_name);
+    setEditLastName(selectedVolunteer.last_name);
+    setEditPhone(selectedVolunteer.phone || '');
+    setEditAddress(selectedVolunteer.address || '');
+    setIsEditOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedVolunteer || !editFirstName.trim() || !editLastName.trim()) return;
+    onUpdateVolunteer({
+      ...selectedVolunteer,
+      first_name: editFirstName.trim(),
+      last_name: editLastName.trim(),
+      phone: editPhone.trim(),
+      address: editAddress.trim()
+    });
+    setIsEditOpen(false);
+    setSelectedVolunteer({
+      ...selectedVolunteer,
+      first_name: editFirstName.trim(),
+      last_name: editLastName.trim(),
+      phone: editPhone.trim(),
+      address: editAddress.trim()
+    });
   };
 
   return (
@@ -153,7 +191,13 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
 
       <Modal isOpen={!!selectedVolunteer} onClose={() => setSelectedVolunteer(null)} title="Member Profile">
         <div className="space-y-6">
-          <div className="text-center">
+          <div className="text-center relative">
+            <button 
+              onClick={openEditModal}
+              className="absolute top-0 right-0 w-10 h-10 bg-iosBlue/10 rounded-full flex items-center justify-center text-iosBlue active:bg-iosBlue/20 transition-colors"
+            >
+              <Edit3 size={18} />
+            </button>
             <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 text-[28px] font-bold shadow-md ${selectedVolunteer ? getAvatarColor(`${selectedVolunteer.first_name} ${selectedVolunteer.last_name}`) : ''}`}>
               {selectedVolunteer?.first_name.charAt(0)}{selectedVolunteer?.last_name.charAt(0)}
             </div>
@@ -165,6 +209,12 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
                 <Phone size={14} fill="currentColor" />
                 {selectedVolunteer.phone}
               </a>
+            )}
+            {selectedVolunteer?.address && (
+              <div className="flex items-center justify-center gap-1.5 mt-2 text-iosGray text-[14px]">
+                <MapPin size={14} />
+                <span>{selectedVolunteer.address}</span>
+              </div>
             )}
           </div>
 
@@ -236,9 +286,65 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
              placeholder="Phone Number"
              type="tel"
            />
+           <textarea 
+             className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] resize-none"
+             value={newAddress}
+             onChange={(e) => setNewAddress(e.target.value)}
+             placeholder="Address (optional)"
+             rows={2}
+           />
            <Button fullWidth onClick={handleSave} disabled={!newFirstName || !newLastName}>
              Create Profile
            </Button>
+        </div>
+      </Modal>
+
+      {/* Edit Member Modal */}
+      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Member Profile">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">First Name</label>
+              <input 
+                className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
+                value={editFirstName}
+                onChange={(e) => setEditFirstName(e.target.value)}
+                placeholder="First Name"
+              />
+            </div>
+            <div>
+              <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Last Name</label>
+              <input 
+                className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
+                value={editLastName}
+                onChange={(e) => setEditLastName(e.target.value)}
+                placeholder="Last Name"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Phone Number</label>
+            <input 
+              className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              placeholder="Phone Number"
+              type="tel"
+            />
+          </div>
+          <div>
+            <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Address</label>
+            <textarea 
+              className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20 resize-none"
+              value={editAddress}
+              onChange={(e) => setEditAddress(e.target.value)}
+              placeholder="Enter address"
+              rows={3}
+            />
+          </div>
+          <Button fullWidth onClick={handleSaveEdit} disabled={!editFirstName || !editLastName}>
+            Save Changes
+          </Button>
         </div>
       </Modal>
     </div>

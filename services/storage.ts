@@ -60,6 +60,21 @@ export const AuthService = {
     if (!supabase) return null;
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
     return data;
+  },
+
+  async updateProfile(userId: string, profileData: Partial<UserProfile>): Promise<void> {
+    if (!supabase) throw new Error("Supabase not configured");
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        phone: profileData.phone,
+        address: profileData.address,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+    if (error) throw error;
   }
 };
 
@@ -94,6 +109,18 @@ export const StorageService = {
       const { error } = await supabase
         .from('isha_static_categories')
         .update({ category: name, last_updated: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    } else {
+      throw new Error("Supabase not configured");
+    }
+  },
+
+  async deleteCategory(id: string): Promise<void> {
+    if (supabase) {
+      const { error } = await supabase
+        .from('isha_static_categories')
+        .delete()
         .eq('id', id);
       if (error) throw error;
     } else {

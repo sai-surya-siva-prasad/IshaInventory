@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Item, Assignment, Volunteer, Category } from '../types';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
-import { Plus, Search, Box, Check, Info, User, Settings2, Edit2, XCircle, Hash, Users, Phone } from 'lucide-react';
+import { Plus, Search, Box, Check, Info, User, Settings2, Edit2, XCircle, Hash, Users, Phone, Trash2 } from 'lucide-react';
 
 interface InventoryListProps {
   items: Item[];
@@ -15,6 +15,7 @@ interface InventoryListProps {
   onUnassign: (assignmentId: string) => void;
   onAddCategory: (name: string) => Promise<void>;
   onUpdateCategory?: (id: string, name: string) => Promise<void>;
+  onDeleteCategory?: (id: string) => Promise<void>;
 }
 
 export const InventoryList: React.FC<InventoryListProps> = ({ 
@@ -27,7 +28,8 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   onDeleteItem,
   onUnassign,
   onAddCategory,
-  onUpdateCategory
+  onUpdateCategory,
+  onDeleteCategory
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -170,6 +172,18 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     }
   };
 
+  const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+    if (!onDeleteCategory) return;
+    const itemsInCategory = items.filter(i => i.category_id === categoryId);
+    if (itemsInCategory.length > 0) {
+      alert(`Cannot delete "${categoryName}" because it has ${itemsInCategory.length} item(s) assigned. Please reassign or remove those items first.`);
+      return;
+    }
+    if (confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
+      await onDeleteCategory(categoryId);
+    }
+  };
+
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-3 mb-4 px-1">
@@ -300,72 +314,55 @@ export const InventoryList: React.FC<InventoryListProps> = ({
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h5 className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Current Distribution</h5>
-            <div className="bg-iosBg/50 p-4 rounded-2xl border border-iosDivider/10 space-y-4">
-              {(() => {
-                const itemAssings = selectedItem ? getItemAssignments(selectedItem.id) : [];
-                const available = selectedItem ? getAvailableQuantity(selectedItem) : 0;
-                
-                return (
-                  <>
-                    <div className="flex items-center justify-between pb-2 border-b border-iosDivider/10">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#34C759]/10 text-[#34C759] flex items-center justify-center font-bold text-[14px]">
-                          IN
-                        </div>
-                        <p className="text-[15px] font-bold text-[#34C759]">Available in Registry</p>
-                      </div>
-                      <span className="text-[17px] font-black text-black">{available}</span>
-                    </div>
+          {(() => {
+            const itemAssings = selectedItem ? getItemAssignments(selectedItem.id) : [];
+            
+            return itemAssings.length > 0 ? (
+              <div className="space-y-3">
+                <h5 className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Assigned To</h5>
+                <div className="bg-iosBg/50 p-4 rounded-2xl border border-iosDivider/10 space-y-3">
+                  {itemAssings.map(a => {
+                    const holderName = (a.volunteerFirstName && a.volunteerLastName) 
+                      ? `${a.volunteerFirstName} ${a.volunteerLastName}` 
+                      : 'Unknown Member';
 
-                    {itemAssings.length > 0 && (
-                      <div className="space-y-3 pt-1">
-                        {itemAssings.map(a => {
-                          const holderName = (a.volunteerFirstName && a.volunteerLastName) 
-                            ? `${a.volunteerFirstName} ${a.volunteerLastName}` 
-                            : 'Unknown Member';
-
-                          return (
-                            <div key={a.id} className="flex items-center justify-between group">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-iosBlue/10 text-iosBlue flex items-center justify-center">
-                                  <User size={16} />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <p className="text-[14px] font-bold text-black leading-tight">{holderName}</p>
-                                    {a.volunteerPhone && (
-                                      <a 
-                                        href={`tel:${a.volunteerPhone}`}
-                                        className="w-6 h-6 rounded-full bg-iosBlue/10 text-iosBlue flex items-center justify-center active:scale-90 transition-transform"
-                                      >
-                                        <Phone size={12} fill="currentColor" />
-                                      </a>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-iosGray italic">Since {new Date(a.assigned_at).toLocaleDateString()}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-[16px] font-bold text-iosBlue">x{a.quantity_assigned}</span>
-                                <button 
-                                  onClick={() => onUnassign(a.id)}
-                                  className="text-[#FF3B30] text-[11px] font-bold bg-white px-2 py-1.5 rounded-lg shadow-sm active:scale-95 transition-transform"
+                    return (
+                      <div key={a.id} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-iosBlue/10 text-iosBlue flex items-center justify-center">
+                            <User size={16} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[14px] font-bold text-black leading-tight">{holderName}</p>
+                              {a.volunteerPhone && (
+                                <a 
+                                  href={`tel:${a.volunteerPhone}`}
+                                  className="w-6 h-6 rounded-full bg-iosBlue/10 text-iosBlue flex items-center justify-center active:scale-90 transition-transform"
                                 >
-                                  In
-                                </button>
-                              </div>
+                                  <Phone size={12} fill="currentColor" />
+                                </a>
+                              )}
                             </div>
-                          );
-                        })}
+                            <p className="text-[11px] text-iosGray italic">Since {new Date(a.assigned_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[16px] font-bold text-iosBlue">x{a.quantity_assigned}</span>
+                          <button 
+                            onClick={() => onUnassign(a.id)}
+                            className="text-[#FF3B30] flex items-center justify-center active:scale-95 transition-transform"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null;
+          })()}
 
           <div className="space-y-3">
             {selectedItem && getAvailableQuantity(selectedItem) > 0 && (
@@ -378,7 +375,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               onClick={handleDeleteItem}
               className="w-full py-4 text-[#FF3B30] text-[16px] font-bold active:bg-red-50 rounded-2xl border border-[#FF3B30]/10 transition-colors mt-2"
             >
-              Remove Item Completely
+              Remove Item
             </button>
           </div>
         </div>
@@ -573,14 +570,24 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                       />
                     </div>
                   ) : (
-                    <div className="flex justify-between items-center">
-                      <span className="text-[16px] font-semibold text-black truncate">{c.category}</span>
-                      <button 
-                        onClick={() => handleStartEditCategory(c)}
-                        className="w-10 h-10 flex items-center justify-center text-iosBlue bg-white shadow-sm border border-iosBlue/10 rounded-full"
-                      >
-                        <Edit2 size={16} />
-                      </button>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-[16px] font-semibold text-black truncate flex-1">{c.category}</span>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleStartEditCategory(c)}
+                          className="w-10 h-10 flex items-center justify-center text-iosBlue bg-white shadow-sm border border-iosBlue/10 rounded-full active:scale-95 transition-transform"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        {onDeleteCategory && (
+                          <button 
+                            onClick={() => handleDeleteCategory(c.id, c.category)}
+                            className="w-10 h-10 flex items-center justify-center text-[#FF3B30] bg-white shadow-sm border border-[#FF3B30]/10 rounded-full active:scale-95 transition-transform"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
