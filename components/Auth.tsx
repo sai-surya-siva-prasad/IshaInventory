@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { AuthService } from '../services/storage';
 import { Button } from './ui/Button';
 import { CubeLogo } from './ui/Logo';
-import { User, Mail, Lock, Phone, ChevronRight, AlertCircle, MapPin } from 'lucide-react';
+import { User, Mail, Lock, Phone, ChevronRight, AlertCircle } from 'lucide-react';
 
 interface AuthProps {
   onAuthComplete: () => void;
@@ -17,7 +17,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [address, setAddress] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +34,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
           first_name: firstName,
           last_name: lastName,
           phone: phoneNumber,
-          address: address,
         });
       }
       onAuthComplete();
@@ -84,7 +82,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/60" size={18} />
                     <input
                       type="text"
-                      placeholder="First Name"
+                      placeholder="First Name *"
                       className="w-full pl-11 pr-4 py-3.5 rounded-[14px] bg-iosBg focus:bg-white focus:ring-2 focus:ring-iosBlue/20 outline-none text-[16px] transition-all"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
@@ -94,7 +92,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="Last Name"
+                      placeholder="Last Name *"
                       className="w-full px-4 py-3.5 rounded-[14px] bg-iosBg focus:bg-white focus:ring-2 focus:ring-iosBlue/20 outline-none text-[16px] transition-all"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
@@ -115,16 +113,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
                   />
                 </div>
 
-                <div className="relative">
-                  <MapPin className="absolute left-4 top-[18px] text-iosGray/60" size={18} />
-                  <textarea
-                    placeholder="Address (Home or Office)"
-                    rows={2}
-                    className="w-full pl-11 pr-4 py-3.5 rounded-[14px] bg-iosBg focus:bg-white focus:ring-2 focus:ring-iosBlue/20 outline-none text-[16px] transition-all resize-none"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
               </div>
             )}
 
@@ -133,7 +121,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/60" size={18} />
                 <input
                   type="email"
-                  placeholder="Email Address"
+                  placeholder="Email Address *"
                   className="w-full pl-11 pr-4 py-3.5 rounded-[14px] bg-iosBg focus:bg-white focus:ring-2 focus:ring-iosBlue/20 outline-none text-[16px] transition-all"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -144,7 +132,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/60" size={18} />
                 <input
                   type="password"
-                  placeholder="Password"
+                  placeholder="Password *"
                   className="w-full pl-11 pr-4 py-3.5 rounded-[14px] bg-iosBg focus:bg-white focus:ring-2 focus:ring-iosBlue/20 outline-none text-[16px] transition-all"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
