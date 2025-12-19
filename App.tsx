@@ -198,7 +198,7 @@ const App: React.FC = () => {
              <div className="flex items-center gap-3">
                <CubeLogo size={42} color="#007AFF" />
                <div className="flex flex-col">
-                 <span className="text-[17px] font-bold text-black leading-none">CommunityKeeper</span>
+                 <span className="text-[17px] font-bold text-black leading-none">WhoHasWhat</span>
                </div>
              </div>
              <button onClick={handleSignOut} className="text-iosGray p-2 active:opacity-40">
@@ -308,7 +308,7 @@ const App: React.FC = () => {
                 </div>
                 
                 <div className="text-center pb-8">
-                  <p className="text-[13px] text-iosGray">CommunityKeeper v3.6.0</p>
+                  <p className="text-[13px] text-iosGray">WhoHasWhat v1.0.0</p>
                   <p className="text-[11px] text-iosGray/50 mt-1">Registry Management System</p>
                 </div>
               </div>

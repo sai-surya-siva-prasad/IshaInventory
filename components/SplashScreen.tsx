@@ -53,7 +53,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onComplete }) => {
         
         <div className="mt-6 text-center">
           <h1 className="text-[28px] font-extrabold tracking-tight text-black">
-            CommunityKeeper
+            WhoHasWhat
           </h1>
           <p className="text-iosGray text-[15px] mt-1">
             Registry Management System

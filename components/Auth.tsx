@@ -69,7 +69,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
             {isLogin ? 'Welcome Back' : 'Get Started'}
           </h1>
           <p className="text-iosGray text-[17px]">
-            {isLogin ? 'Sign in to manage your inventory' : 'Join CommunityKeeper today'}
+            {isLogin ? 'Sign in to manage your inventory' : 'Join WhoHasWhat today'}
           </p>
         </div>
 
