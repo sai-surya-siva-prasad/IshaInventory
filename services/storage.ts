@@ -2,8 +2,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Item, Volunteer, Assignment, UserProfile, Category } from '../types';
 
-const SUPABASE_URL = 'https://dnsmugvjkbjjpxvqdpdt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc211Z3Zqa2JqanB4dnFkcGR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5OTU0MDUsImV4cCI6MjA4MTU3MTQwNX0.fycPooCLyds928NXYcjqD9AryTcNoyTNM_LLdxlGeH4';
+// Use environment variables for Supabase credentials
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://dnsmugvjkbjjpxvqdpdt.supabase.co';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc211Z3Zqa2JqanB4dnFkcGR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5OTU0MDUsImV4cCI6MjA4MTU3MTQwNX0.fycPooCLyds928NXYcjqD9AryTcNoyTNM_LLdxlGeH4';
 
 export const supabase: SupabaseClient | null = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 

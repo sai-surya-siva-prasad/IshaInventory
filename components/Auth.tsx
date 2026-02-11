@@ -39,15 +39,23 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
       onAuthComplete();
     } catch (err: any) {
       console.error("Auth Component Error:", err);
-      // Robust error message extraction
+      // Sanitize error messages - don't expose sensitive information
       let message = 'Authentication failed. Please check your credentials.';
       
-      if (typeof err === 'string') {
-        message = err;
-      } else if (err.message) {
-        message = err.message;
-      } else if (err.error_description) {
-        message = err.error_description;
+      if (err?.message) {
+        // Only show safe error messages
+        const safeMessage = err.message.toLowerCase();
+        if (safeMessage.includes('invalid') || safeMessage.includes('credentials')) {
+          message = 'Invalid email or password. Please try again.';
+        } else if (safeMessage.includes('email')) {
+          message = 'Please enter a valid email address.';
+        } else if (safeMessage.includes('password')) {
+          message = 'Password must be at least 8 characters with uppercase, lowercase, and a number.';
+        } else if (safeMessage.includes('already registered')) {
+          message = 'An account with this email already exists.';
+        } else {
+          message = 'Something went wrong. Please try again.';
+        }
       }
       
       setError(message);
@@ -137,7 +145,9 @@ export const Auth: React.FC<AuthProps> = ({ onAuthComplete }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
+                  pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$"
+                  title="Password must be at least 8 characters with uppercase, lowercase, and a number"
                 />
               </div>
             </div>

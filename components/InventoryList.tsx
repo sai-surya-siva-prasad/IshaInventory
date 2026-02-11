@@ -36,6 +36,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [assignItem, setAssignItem] = useState<Item | null>(null);
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
   const [assignQuantity, setAssignQuantity] = useState<number>(1);
+  const [assignQuantityInput, setAssignQuantityInput] = useState<string>('1');
   const [volunteerSearch, setVolunteerSearch] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -112,6 +113,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     setSelectedVolunteer(null);
     setVolunteerSearch('');
     setAssignQuantity(1);
+    setAssignQuantityInput('1');
   };
 
   const handleConfirmAssignment = () => {
@@ -397,8 +399,29 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                      min="1"
                      max={assignItem ? getAvailableQuantity(assignItem) : 1}
                      className="w-full px-4 py-3.5 rounded-[12px] bg-white border-2 border-iosBlue/20 outline-none text-[18px] font-bold text-iosBlue"
-                     value={assignQuantity}
-                     onChange={(e) => setAssignQuantity(Math.min(parseInt(e.target.value) || 1, assignItem ? getAvailableQuantity(assignItem) : 1))}
+                     value={assignQuantityInput}
+                     onChange={(e) => {
+                       const value = e.target.value;
+                       setAssignQuantityInput(value);
+                       if (value === '') {
+                         setAssignQuantity(1);
+                       } else {
+                         const numValue = parseInt(value);
+                         if (!isNaN(numValue) && numValue >= 1) {
+                           const maxValue = assignItem ? getAvailableQuantity(assignItem) : 1;
+                           const finalValue = Math.min(numValue, maxValue);
+                           setAssignQuantity(finalValue);
+                           setAssignQuantityInput(finalValue.toString());
+                         }
+                       }
+                     }}
+                     onBlur={(e) => {
+                       if (e.target.value === '' || parseInt(e.target.value) < 1) {
+                         setAssignQuantityInput('1');
+                         setAssignQuantity(1);
+                       }
+                     }}
+                     onFocus={(e) => e.target.select()}
                    />
                 </div>
              </div>
