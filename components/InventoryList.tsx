@@ -43,7 +43,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
   const [newItemName, setNewItemName] = useState('');
-  const [newItemQuantity, setNewItemQuantity] = useState<number>(1);
+  const [newItemQuantity, setNewItemQuantity] = useState<number>(0);
   const [newItemCategoryId, setNewItemCategoryId] = useState<string>('');
   
   const [newCatName, setNewCatName] = useState('');
@@ -131,7 +131,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       quantity: newItemQuantity
     });
     setNewItemName('');
-    setNewItemQuantity(1);
+    setNewItemQuantity(0);
     setIsAddModalOpen(false);
   };
 
@@ -487,10 +487,10 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/40" size={18} />
                <input 
                  type="number"
-                 min="1"
+                 min="0"
                  className="w-full pl-11 pr-4 py-3.5 rounded-[12px] bg-iosBg focus:bg-white border border-transparent focus:border-iosBlue/20 outline-none text-[17px] transition-all font-bold"
                  value={newItemQuantity}
-                 onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 1)}
+                 onChange={(e) => setNewItemQuantity(parseInt(e.target.value) || 0)}
                />
              </div>
            </div>
