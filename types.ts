@@ -12,7 +12,7 @@ export interface Item {
   category_id: string;
   quantity: number;
   last_updated: string;
-  category?: string; // Virtual field for UI convenience
+  category?: string;
 }
 
 export interface Volunteer {
@@ -21,6 +21,7 @@ export interface Volunteer {
   last_name: string;
   phone?: string;
   address?: string;
+  color?: string;
 }
 
 export interface Assignment {
@@ -30,8 +31,10 @@ export interface Assignment {
   volunteerFirstName?: string;
   volunteerLastName?: string;
   volunteerPhone?: string;
+  volunteerColor?: string;
   quantity_assigned: number;
   assigned_at: string;
+  returned_at?: string | null;
 }
 
 export interface UserProfile {

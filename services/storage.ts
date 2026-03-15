@@ -2,7 +2,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Item, Volunteer, Assignment, UserProfile, Category } from '../types';
 
-// Use environment variables for Supabase credentials
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://dnsmugvjkbjjpxvqdpdt.supabase.co';
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuc211Z3Zqa2JqanB4dnFkcGR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5OTU0MDUsImV4cCI6MjA4MTU3MTQwNX0.fycPooCLyds928NXYcjqD9AryTcNoyTNM_LLdxlGeH4';
 
@@ -11,9 +10,9 @@ export const supabase: SupabaseClient | null = createClient(SUPABASE_URL, SUPABA
 export const AuthService = {
   async signUp(email: string, pass: string, profileData: Partial<UserProfile>) {
     if (!supabase) throw new Error("Supabase not configured");
-    
-    const { data, error: authError } = await supabase.auth.signUp({ 
-      email, 
+
+    const { data, error: authError } = await supabase.auth.signUp({
+      email,
       password: pass,
       options: {
         data: {
@@ -23,12 +22,12 @@ export const AuthService = {
         }
       }
     });
-    
+
     if (authError) throw authError;
-    
+
     if (data.user) {
-      await supabase.from('profiles').upsert({ 
-        id: data.user.id, 
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
         phone: profileData.phone || '',
@@ -135,7 +134,7 @@ export const StorageService = {
         .from('isha_items')
         .select('*, isha_static_categories(category)')
         .order('name');
-      
+
       return (data || []).map(item => ({
         ...item,
         category: item.isha_static_categories?.category || 'Uncategorized'
@@ -152,9 +151,9 @@ export const StorageService = {
         category_id: item.category_id,
         quantity: item.quantity,
         last_updated: new Date().toISOString(),
-        user_id: user?.id 
+        user_id: user?.id
       };
-      
+
       if (item.id) payload.id = item.id;
 
       const { error } = await supabase.from('isha_items').upsert(payload);
@@ -164,13 +163,10 @@ export const StorageService = {
 
   async deleteItem(id: string) {
     if (supabase) {
-      // Direct delete on the primary table. 
-      // Relies on database level ON DELETE CASCADE or Triggers as specified by the user's policies.
       const { error } = await supabase
         .from('isha_items')
         .delete()
         .eq('id', id);
-      
       if (error) throw error;
     }
   },
@@ -186,14 +182,15 @@ export const StorageService = {
   async saveVolunteer(v: Partial<Volunteer>) {
     if (supabase) {
       const { data: { user } } = await supabase.auth.getUser();
-      const payload: any = { 
+      const payload: any = {
         first_name: v.first_name,
         last_name: v.last_name,
         phone: v.phone,
         address: v.address,
-        user_id: user?.id 
+        color: v.color || '#007AFF',
+        user_id: user?.id
       };
-      
+
       if (v.id) payload.id = v.id;
 
       const { error } = await supabase.from('volunteers').upsert(payload);
@@ -203,33 +200,34 @@ export const StorageService = {
 
   async deleteVolunteer(id: string) {
     if (supabase) {
-      // Direct delete on the primary table. 
-      // Relies on database level ON DELETE CASCADE or Triggers as specified by the user's policies.
       const { error } = await supabase
         .from('volunteers')
         .delete()
         .eq('id', id);
-      
       if (error) throw error;
     }
   },
 
+  // Returns only active (not yet returned) assignments, joined with volunteer info
   async getAssignments(): Promise<Assignment[]> {
     if (supabase) {
       const { data } = await supabase
         .from('isha_item_assignments')
-        .select('*')
+        .select('*, volunteers(first_name, last_name, phone, color)')
+        .is('returned_at', null)
         .order('assigned_at', { ascending: false });
-      
+
       return (data || []).map(a => ({
         id: a.id,
         itemId: a.item_id,
         volunteerId: a.volunteer_id,
-        volunteerFirstName: a.volunteer_first_name,
-        volunteerLastName: a.volunteer_last_name,
-        volunteerPhone: a.volunteer_phone,
+        volunteerFirstName: a.volunteers?.first_name,
+        volunteerLastName: a.volunteers?.last_name,
+        volunteerPhone: a.volunteers?.phone,
+        volunteerColor: a.volunteers?.color || '#007AFF',
         quantity_assigned: a.quantity_assigned,
-        assigned_at: a.assigned_at
+        assigned_at: a.assigned_at,
+        returned_at: a.returned_at
       }));
     }
     return [];
@@ -238,14 +236,63 @@ export const StorageService = {
   async saveAssignment(a: Partial<Assignment>) {
     if (supabase) {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('isha_item_assignments').insert({ 
+      const { error } = await supabase.from('isha_item_assignments').insert({
         item_id: a.itemId,
         volunteer_id: a.volunteerId,
         quantity_assigned: a.quantity_assigned || 1,
-        user_id: user?.id 
+        user_id: user?.id
       });
       if (error) throw error;
     }
+  },
+
+  // Marks an assignment as returned (preserves history) instead of deleting
+  async returnAssignment(id: string) {
+    if (supabase) {
+      const { error } = await supabase
+        .from('isha_item_assignments')
+        .update({ returned_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    }
+  },
+
+  // Moves quantity from one person to another.
+  // If moving all → marks old as returned. If partial → reduces old qty, creates new.
+  async transferAssignment(
+    fromAssignmentId: string,
+    itemId: string,
+    fromCurrentQty: number,
+    toVolunteerId: string,
+    quantityToMove: number
+  ) {
+    if (!supabase) throw new Error("Supabase not configured");
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (quantityToMove >= fromCurrentQty) {
+      // Full move — mark old as returned
+      const { error: retErr } = await supabase
+        .from('isha_item_assignments')
+        .update({ returned_at: new Date().toISOString() })
+        .eq('id', fromAssignmentId);
+      if (retErr) throw retErr;
+    } else {
+      // Partial move — reduce old quantity
+      const { error: reduceErr } = await supabase
+        .from('isha_item_assignments')
+        .update({ quantity_assigned: fromCurrentQty - quantityToMove })
+        .eq('id', fromAssignmentId);
+      if (reduceErr) throw reduceErr;
+    }
+
+    // Create new assignment for the receiving volunteer
+    const { error: newErr } = await supabase.from('isha_item_assignments').insert({
+      item_id: itemId,
+      volunteer_id: toVolunteerId,
+      quantity_assigned: quantityToMove,
+      user_id: user?.id
+    });
+    if (newErr) throw newErr;
   },
 
   async deleteAssignment(id: string) {
@@ -254,7 +301,6 @@ export const StorageService = {
         .from('isha_item_assignments')
         .delete()
         .eq('id', id);
-      
       if (error) throw error;
     }
   }
