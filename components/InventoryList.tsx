@@ -644,7 +644,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
             {!showAddPerson && (
               <>
-                {sheetAvailQty > 1 && (
+                {sheetAvailQty >= 1 && (
                   <div className="space-y-2">
                     <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest">How many?</p>
                     <QtyPills max={sheetAvailQty} value={assignQty} onChange={setAssignQty} />
@@ -733,7 +733,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
             {!showAddPerson && (
               <>
-                {moveFrom.quantity_assigned > 1 && (
+                {moveFrom.quantity_assigned >= 1 && (
                   <div className="space-y-2">
                     <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest">How many?</p>
                     <QtyPills
@@ -849,14 +849,30 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           </div>
           <div className="space-y-1.5">
             <label className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Quantity</label>
-            <div className="relative">
-              <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/40" size={18} />
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => { const v = Math.max(1, newItemQuantity - 1); setNewItemQuantity(v); setAddModalAssignQty(Math.min(addModalAssignQty, v)); }}
+                className="w-11 h-11 rounded-full bg-iosBg text-iosBlue text-2xl font-bold flex items-center justify-center active:opacity-60"
+              >−</button>
               <input
-                type="number" min="1"
-                className="w-full pl-11 pr-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] font-bold"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className="flex-1 text-center py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] font-bold"
                 value={newItemQuantity}
-                onChange={e => { const v = parseInt(e.target.value) || 1; setNewItemQuantity(v); setAddModalAssignQty(Math.min(addModalAssignQty, v)); }}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9]/g, '');
+                  if (raw === '') { setNewItemQuantity(1); return; }
+                  const v = parseInt(raw);
+                  if (!isNaN(v) && v >= 1) { setNewItemQuantity(v); setAddModalAssignQty(Math.min(addModalAssignQty, v)); }
+                }}
               />
+              <button
+                type="button"
+                onClick={() => setNewItemQuantity(n => n + 1)}
+                className="w-11 h-11 rounded-full bg-iosBg text-iosBlue text-2xl font-bold flex items-center justify-center active:opacity-60"
+              >+</button>
             </div>
           </div>
           <div className="space-y-1.5">
