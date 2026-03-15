@@ -898,25 +898,23 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                         onChange={e => setAddModalVolSearch(e.target.value)}
                       />
                     </div>
-                    {addModalVolSearch.length > 0 && (
-                      <div className="space-y-1 max-h-36 overflow-y-auto">
-                        {volunteers
-                          .filter(v => `${v.first_name} ${v.last_name}`.toLowerCase().includes(addModalVolSearch.toLowerCase()))
-                          .map(vol => (
-                            <button key={vol.id} onClick={() => { setAddModalSelectedVol(vol); setAddModalVolSearch(''); }}
-                              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-iosBg active:bg-iosDivider/20 text-left">
-                              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold"
-                                style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
-                                {vol.first_name.charAt(0)}
-                              </div>
-                              <div>
-                                <p className="text-[14px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
-                                {vol.phone && <p className="text-[11px] text-iosGray">{vol.phone}</p>}
-                              </div>
-                            </button>
-                          ))}
-                      </div>
-                    )}
+                    <div className="space-y-1 max-h-36 overflow-y-auto">
+                      {volunteers
+                        .filter(v => !addModalVolSearch || `${v.first_name} ${v.last_name}`.toLowerCase().includes(addModalVolSearch.toLowerCase()))
+                        .map(vol => (
+                          <button key={vol.id} onClick={() => { setAddModalSelectedVol(vol); setAddModalVolSearch(''); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-iosBg active:bg-iosDivider/20 text-left">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold"
+                              style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
+                              {vol.first_name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-[14px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
+                              {vol.phone && <p className="text-[11px] text-iosGray">{vol.phone}</p>}
+                            </div>
+                          </button>
+                        ))}
+                    </div>
                   </>
                 )}
 
