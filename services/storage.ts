@@ -143,7 +143,7 @@ export const StorageService = {
     return [];
   },
 
-  async saveItem(item: Partial<Item>) {
+  async saveItem(item: Partial<Item>): Promise<Item | null> {
     if (supabase) {
       const { data: { user } } = await supabase.auth.getUser();
       const payload: any = {
@@ -156,9 +156,11 @@ export const StorageService = {
 
       if (item.id) payload.id = item.id;
 
-      const { error } = await supabase.from('isha_items').upsert(payload);
+      const { data, error } = await supabase.from('isha_items').upsert(payload).select().single();
       if (error) throw error;
+      return data;
     }
+    return null;
   },
 
   async deleteItem(id: string) {

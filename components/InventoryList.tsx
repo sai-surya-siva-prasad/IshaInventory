@@ -13,13 +13,12 @@ interface InventoryListProps {
   onAssign: (itemId: string, volunteerId: string, quantity: number) => Promise<void>;
   onTransfer: (fromAssignmentId: string, itemId: string, fromCurrentQty: number, toVolunteerId: string, quantityToMove: number) => Promise<void>;
   onReturn: (assignmentId: string) => Promise<void>;
-  onAddItem: (item: Partial<Item>) => void;
   onDeleteItem: (itemId: string) => void;
   onAddCategory: (name: string) => Promise<void>;
   onUpdateCategory?: (id: string, name: string) => Promise<void>;
   onDeleteCategory?: (id: string) => Promise<void>;
   onCreateVolunteer: (v: Partial<Volunteer>) => Promise<Volunteer>;
-  addTrigger?: number;
+  onAddItem: (item: Partial<Item>, assignToVolunteerId?: string, assignQty?: number) => void;
 }
 
 interface InlineAddPersonProps {
@@ -187,6 +186,17 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [newItemName, setNewItemName] = useState('');
   const [newItemQuantity, setNewItemQuantity] = useState<number>(1);
   const [newItemCategoryId, setNewItemCategoryId] = useState<string>('');
+  // Optional assign section inside Add Item modal
+  const [addModalVolSearch, setAddModalVolSearch] = useState('');
+  const [addModalSelectedVol, setAddModalSelectedVol] = useState<Volunteer | null>(null);
+  const [addModalAssignQty, setAddModalAssignQty] = useState(1);
+  const [addModalShowNewPerson, setAddModalShowNewPerson] = useState(false);
+  const [addModalNewFirst, setAddModalNewFirst] = useState('');
+  const [addModalNewLast, setAddModalNewLast] = useState('');
+  const [addModalNewPhone, setAddModalNewPhone] = useState('');
+  const [addModalNewAddress, setAddModalNewAddress] = useState('');
+  const [addModalNewColor, setAddModalNewColor] = useState(COLORS[0]);
+  const [addModalCreatingPerson, setAddModalCreatingPerson] = useState(false);
 
   // Manage categories modal
   const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
@@ -194,13 +204,6 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [catAdding, setCatAdding] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
-
-  React.useEffect(() => {
-    if (addTrigger && addTrigger > 0) {
-      setNewItemCategoryId(categories[0]?.id || '');
-      setIsAddModalOpen(true);
-    }
-  }, [addTrigger]);
 
   const getItemAssignments = (itemId: string) =>
     assignments.filter(a => a.itemId === itemId);
@@ -340,12 +343,42 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   }, [sheetItem, moveFrom, selectedVolunteer, moveQty, assignments]);
 
   // --- Add item ---
+  const resetAddModal = () => {
+    setNewItemName(''); setNewItemQuantity(1); setNewItemCategoryId('');
+    setAddModalVolSearch(''); setAddModalSelectedVol(null); setAddModalAssignQty(1);
+    setAddModalShowNewPerson(false);
+    setAddModalNewFirst(''); setAddModalNewLast(''); setAddModalNewPhone('');
+    setAddModalNewAddress(''); setAddModalNewColor(COLORS[0]);
+  };
+
   const handleSaveNewItem = () => {
     if (!newItemName.trim() || !newItemCategoryId) return;
-    onAddItem({ name: newItemName.trim(), category_id: newItemCategoryId, quantity: newItemQuantity });
-    setNewItemName('');
-    setNewItemQuantity(1);
+    onAddItem(
+      { name: newItemName.trim(), category_id: newItemCategoryId, quantity: newItemQuantity },
+      addModalSelectedVol?.id,
+      addModalSelectedVol ? addModalAssignQty : undefined
+    );
+    resetAddModal();
     setIsAddModalOpen(false);
+  };
+
+  const handleAddModalSaveNewPerson = async () => {
+    if (!addModalNewFirst.trim() || !addModalNewLast.trim() || !addModalNewPhone.trim() || addModalCreatingPerson) return;
+    setAddModalCreatingPerson(true);
+    try {
+      const created = await onCreateVolunteer({
+        first_name: addModalNewFirst.trim(), last_name: addModalNewLast.trim(),
+        phone: addModalNewPhone.trim(), address: addModalNewAddress.trim(),
+        color: addModalNewColor,
+      });
+      setAddModalSelectedVol(created);
+      setAddModalShowNewPerson(false);
+      setAddModalNewFirst(''); setAddModalNewLast('');
+      setAddModalNewPhone(''); setAddModalNewAddress('');
+      setAddModalNewColor(COLORS[0]);
+    } finally {
+      setAddModalCreatingPerson(false);
+    }
   };
 
   const handleDeleteItem = (item: Item) => {
@@ -417,7 +450,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
           />
         </div>
         <button
-          onClick={() => { setNewItemCategoryId(categories[0]?.id || ''); setIsAddModalOpen(true); }}
+          onClick={() => { resetAddModal(); setNewItemCategoryId(categories[0]?.id || ''); setIsAddModalOpen(true); }}
           className="w-10 h-10 bg-iosBlue text-white rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform"
         >
           <Plus size={24} />
@@ -516,20 +549,12 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         {sheetItem && sheetMode === 'detail' && (
           <div className="space-y-5 pb-4">
             {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-[20px] font-bold text-black">{sheetItem.name}</h2>
-                <p className="text-[13px] text-iosGray mt-0.5">
-                  {sheetItem.category} · {sheetItem.quantity} total
-                  {sheetAvailQty > 0 && ` · ${sheetAvailQty} available`}
-                </p>
-              </div>
-              <button
-                onClick={() => handleDeleteItem(sheetItem)}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-[#FF3B30] bg-red-50 active:bg-red-100"
-              >
-                <Trash2 size={16} />
-              </button>
+            <div>
+              <h2 className="text-[20px] font-bold text-black">{sheetItem.name}</h2>
+              <p className="text-[13px] text-iosGray mt-0.5">
+                {sheetItem.category} · {sheetItem.quantity} total
+                {sheetAvailQty > 0 && ` · ${sheetAvailQty} available`}
+              </p>
             </div>
 
             {/* Current holders */}
@@ -601,6 +626,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
             {sheetItemAssignments.length === 0 && sheetAvailQty === 0 && (
               <p className="text-center text-[14px] text-iosGray/60 py-2">All units accounted for</p>
             )}
+
+            <button
+              onClick={() => handleDeleteItem(sheetItem)}
+              className="w-full pt-2 pb-1 text-[#FF3B30]/70 text-[13px] font-medium active:opacity-50"
+            >
+              Remove item from registry
+            </button>
           </div>
         )}
 
@@ -802,8 +834,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
       </BottomSheet>
 
       {/* ── ADD ITEM MODAL ── */}
-      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="New Item">
+      <Modal isOpen={isAddModalOpen} onClose={() => { setIsAddModalOpen(false); resetAddModal(); }} title="New Item">
         <div className="space-y-4">
+          {/* Item details */}
           <div className="space-y-1.5">
             <label className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Item Name</label>
             <input
@@ -819,11 +852,10 @@ export const InventoryList: React.FC<InventoryListProps> = ({
             <div className="relative">
               <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/40" size={18} />
               <input
-                type="number"
-                min="1"
+                type="number" min="1"
                 className="w-full pl-11 pr-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] font-bold"
                 value={newItemQuantity}
-                onChange={e => setNewItemQuantity(parseInt(e.target.value) || 1)}
+                onChange={e => { const v = parseInt(e.target.value) || 1; setNewItemQuantity(v); setAddModalAssignQty(Math.min(addModalAssignQty, v)); }}
               />
             </div>
           </div>
@@ -837,9 +869,94 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               {categories.map(c => <option key={c.id} value={c.id}>{c.category}</option>)}
             </select>
           </div>
-          <Button fullWidth onClick={handleSaveNewItem} disabled={!newItemName.trim() || !newItemCategoryId}>
-            Add Item
-          </Button>
+
+          {/* Optional assign section */}
+          <div className="border-t border-iosDivider/20 pt-4 space-y-3">
+            <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest">Assign to someone? (optional)</p>
+
+            {!addModalShowNewPerson && (
+              <>
+                {addModalSelectedVol ? (
+                  <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-iosBlue/8 border border-iosBlue/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[13px] font-bold"
+                        style={{ background: (addModalSelectedVol.color || '#007AFF') + '25', color: addModalSelectedVol.color || '#007AFF' }}>
+                        {addModalSelectedVol.first_name.charAt(0)}
+                      </div>
+                      <p className="text-[15px] font-semibold text-black">{addModalSelectedVol.first_name} {addModalSelectedVol.last_name}</p>
+                    </div>
+                    <button onClick={() => setAddModalSelectedVol(null)} className="text-iosGray text-[13px] active:opacity-50">Change</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 text-iosGray/40" size={15} />
+                      <input
+                        className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-iosBg outline-none text-[15px]"
+                        placeholder="Search person..."
+                        value={addModalVolSearch}
+                        onChange={e => setAddModalVolSearch(e.target.value)}
+                      />
+                    </div>
+                    {addModalVolSearch.length > 0 && (
+                      <div className="space-y-1 max-h-36 overflow-y-auto">
+                        {volunteers
+                          .filter(v => `${v.first_name} ${v.last_name}`.toLowerCase().includes(addModalVolSearch.toLowerCase()))
+                          .map(vol => (
+                            <button key={vol.id} onClick={() => { setAddModalSelectedVol(vol); setAddModalVolSearch(''); }}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-iosBg active:bg-iosDivider/20 text-left">
+                              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold"
+                                style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
+                                {vol.first_name.charAt(0)}
+                              </div>
+                              <div>
+                                <p className="text-[14px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
+                                {vol.phone && <p className="text-[11px] text-iosGray">{vol.phone}</p>}
+                              </div>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {addModalSelectedVol && newItemQuantity > 1 && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-iosGray uppercase tracking-widest">How many to assign?</p>
+                    <QtyPills max={newItemQuantity} value={addModalAssignQty} onChange={setAddModalAssignQty} />
+                  </div>
+                )}
+
+                <button
+                  onClick={() => setAddModalShowNewPerson(true)}
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-iosBlue/30 text-iosBlue text-[14px] font-semibold flex items-center justify-center gap-1.5 active:bg-iosBlue/5"
+                >
+                  <Plus size={14} /> New Person
+                </button>
+              </>
+            )}
+
+            {addModalShowNewPerson && (
+              <InlineAddPerson
+                firstName={addModalNewFirst} setFirstName={setAddModalNewFirst}
+                lastName={addModalNewLast} setLastName={setAddModalNewLast}
+                phone={addModalNewPhone} setPhone={setAddModalNewPhone}
+                address={addModalNewAddress} setAddress={setAddModalNewAddress}
+                color={addModalNewColor} setColor={setAddModalNewColor}
+                onCancel={() => setAddModalShowNewPerson(false)}
+                onSave={handleAddModalSaveNewPerson}
+                saving={addModalCreatingPerson}
+              />
+            )}
+          </div>
+
+          {!addModalShowNewPerson && (
+            <Button fullWidth onClick={handleSaveNewItem} disabled={!newItemName.trim() || !newItemCategoryId}>
+              {addModalSelectedVol
+                ? `Add Item & Assign ×${addModalAssignQty} to ${addModalSelectedVol.first_name}`
+                : 'Add Item'}
+            </Button>
+          )}
         </div>
       </Modal>
 
