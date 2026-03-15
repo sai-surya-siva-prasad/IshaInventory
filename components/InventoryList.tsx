@@ -18,19 +18,89 @@ interface InventoryListProps {
   onAddCategory: (name: string) => Promise<void>;
   onUpdateCategory?: (id: string, name: string) => Promise<void>;
   onDeleteCategory?: (id: string) => Promise<void>;
+  onCreateVolunteer: (v: Partial<Volunteer>) => Promise<Volunteer>;
 }
 
-// Darken a hex color slightly for text contrast on colored backgrounds
-const darken = (hex: string) => hex; // colors are used at low opacity so no need
+interface InlineAddPersonProps {
+  firstName: string; setFirstName: (v: string) => void;
+  lastName: string; setLastName: (v: string) => void;
+  phone: string; setPhone: (v: string) => void;
+  address: string; setAddress: (v: string) => void;
+  color: string; setColor: (v: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+  saving: boolean;
+}
 
-// Return a text color (white or dark) for a given bg color
-const textColorFor = (hex: string) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum > 0.55 ? '#000000' : '#FFFFFF';
-};
+const InlineAddPerson: React.FC<InlineAddPersonProps> = ({
+  firstName, setFirstName, lastName, setLastName,
+  phone, setPhone, address, setAddress,
+  color, setColor, onCancel, onSave, saving
+}) => (
+  <div className="space-y-3 animate-fade-in">
+    <div className="flex items-center justify-between">
+      <p className="text-[15px] font-bold text-black">New Person</p>
+      <button onClick={onCancel} className="text-iosGray text-[14px] font-semibold active:opacity-50">Cancel</button>
+    </div>
+
+    <div className="grid grid-cols-2 gap-2">
+      <input
+        autoFocus
+        className="w-full px-3 py-3 rounded-[12px] bg-iosBg outline-none text-[16px]"
+        placeholder="First Name"
+        value={firstName}
+        onChange={e => setFirstName(e.target.value)}
+      />
+      <input
+        className="w-full px-3 py-3 rounded-[12px] bg-iosBg outline-none text-[16px]"
+        placeholder="Last Name"
+        value={lastName}
+        onChange={e => setLastName(e.target.value)}
+      />
+    </div>
+
+    <input
+      className="w-full px-3 py-3 rounded-[12px] bg-iosBg outline-none text-[16px]"
+      placeholder="Phone Number (required)"
+      value={phone}
+      onChange={e => setPhone(e.target.value)}
+      type="tel"
+    />
+
+    <input
+      className="w-full px-3 py-3 rounded-[12px] bg-iosBg outline-none text-[16px]"
+      placeholder="Address (optional)"
+      value={address}
+      onChange={e => setAddress(e.target.value)}
+    />
+
+    <div className="space-y-1.5">
+      <p className="text-[11px] font-bold text-iosGray uppercase tracking-widest">Colour</p>
+      <div className="flex gap-2">
+        {COLORS.map(c => (
+          <button
+            key={c}
+            onClick={() => setColor(c)}
+            className="w-7 h-7 rounded-full transition-transform active:scale-90"
+            style={{
+              background: c,
+              boxShadow: color === c ? `0 0 0 2px white, 0 0 0 4px ${c}` : undefined,
+              transform: color === c ? 'scale(1.2)' : undefined,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+
+    <button
+      disabled={!firstName.trim() || !lastName.trim() || !phone.trim() || saving}
+      onClick={onSave}
+      className="w-full py-4 rounded-2xl bg-iosBlue text-white text-[16px] font-bold disabled:opacity-30 active:opacity-80 transition-opacity"
+    >
+      {saving ? 'Saving...' : 'Save & Select'}
+    </button>
+  </div>
+);
 
 const VolunteerBadge: React.FC<{ name: string; qty?: number; color?: string; onCall?: () => void; small?: boolean }> = ({
   name, qty, color = '#007AFF', onCall, small
@@ -66,6 +136,11 @@ const VolunteerBadge: React.FC<{ name: string; qty?: number; color?: string; onC
 
 type SheetMode = 'detail' | 'assign-new' | 'move';
 
+const COLORS = [
+  '#007AFF', '#FF6B35', '#34C759', '#AF52DE',
+  '#FF3B30', '#00B4A0', '#FF9500', '#5856D6',
+];
+
 export const InventoryList: React.FC<InventoryListProps> = ({
   items,
   volunteers,
@@ -79,6 +154,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   onAddCategory,
   onUpdateCategory,
   onDeleteCategory,
+  onCreateVolunteer,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -91,6 +167,15 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
   const [volSearch, setVolSearch] = useState('');
   const [isWorking, setIsWorking] = useState(false);
+
+  // Inline add-person form (inside assign/move sheet)
+  const [showAddPerson, setShowAddPerson] = useState(false);
+  const [newPersonFirst, setNewPersonFirst] = useState('');
+  const [newPersonLast, setNewPersonLast] = useState('');
+  const [newPersonPhone, setNewPersonPhone] = useState('');
+  const [newPersonAddress, setNewPersonAddress] = useState('');
+  const [newPersonColor, setNewPersonColor] = useState(COLORS[0]);
+  const [addingPerson, setAddingPerson] = useState(false);
 
   // Add item modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -151,6 +236,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     setSheetMode('assign-new');
     setSelectedVolunteer(null);
     setVolSearch('');
+    setShowAddPerson(false);
   };
 
   const openMove = (a: Assignment) => {
@@ -159,6 +245,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     setSelectedVolunteer(null);
     setVolSearch('');
     setSheetMode('move');
+    setShowAddPerson(false);
   };
 
   const closeSheet = () => {
@@ -167,9 +254,34 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     setMoveFrom(null);
     setSelectedVolunteer(null);
     setVolSearch('');
+    setShowAddPerson(false);
+    setNewPersonFirst(''); setNewPersonLast('');
+    setNewPersonPhone(''); setNewPersonAddress('');
+    setNewPersonColor(COLORS[0]);
   };
 
   // --- Actions ---
+  const handleSaveNewPerson = async () => {
+    if (!newPersonFirst.trim() || !newPersonLast.trim() || !newPersonPhone.trim() || addingPerson) return;
+    setAddingPerson(true);
+    try {
+      const created = await onCreateVolunteer({
+        first_name: newPersonFirst.trim(),
+        last_name: newPersonLast.trim(),
+        phone: newPersonPhone.trim(),
+        address: newPersonAddress.trim(),
+        color: newPersonColor,
+      });
+      setSelectedVolunteer(created);
+      setShowAddPerson(false);
+      setNewPersonFirst(''); setNewPersonLast('');
+      setNewPersonPhone(''); setNewPersonAddress('');
+      setNewPersonColor(COLORS[0]);
+    } finally {
+      setAddingPerson(false);
+    }
+  };
+
   const handleAssignNew = async () => {
     if (!sheetItem || !selectedVolunteer || isWorking) return;
     setIsWorking(true);
@@ -481,137 +593,181 @@ export const InventoryList: React.FC<InventoryListProps> = ({
         {/* ── ASSIGN NEW from pool ── */}
         {sheetItem && sheetMode === 'assign-new' && (
           <div className="space-y-4 pb-4">
-            <button onClick={() => setSheetMode('detail')} className="text-iosBlue text-[15px] font-semibold">← Back</button>
+            <button onClick={() => { setSheetMode('detail'); setShowAddPerson(false); }} className="text-iosBlue text-[15px] font-semibold">← Back</button>
             <h3 className="text-[18px] font-bold text-black">Assign {sheetItem.name}</h3>
 
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-iosGray/40" size={16} />
-              <input
-                autoFocus
-                className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-iosBg outline-none text-[16px]"
-                placeholder="Search person..."
-                value={volSearch}
-                onChange={e => setVolSearch(e.target.value)}
-              />
-            </div>
+            {!showAddPerson && (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 text-iosGray/40" size={16} />
+                  <input
+                    autoFocus
+                    className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-iosBg outline-none text-[16px]"
+                    placeholder="Search person..."
+                    value={volSearch}
+                    onChange={e => setVolSearch(e.target.value)}
+                  />
+                </div>
 
-            <div className="space-y-1">
-              {filteredVolunteers.map(vol => (
+                <div className="space-y-1">
+                  {filteredVolunteers.map(vol => (
+                    <button
+                      key={vol.id}
+                      onClick={() => setSelectedVolunteer(vol)}
+                      className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all
+                        ${selectedVolunteer?.id === vol.id ? 'bg-iosBlue/10' : 'bg-iosBg active:bg-iosDivider/20'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[14px] font-bold"
+                          style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
+                          {vol.first_name.charAt(0)}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[15px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
+                          {vol.phone && <p className="text-[12px] text-iosGray">{vol.phone}</p>}
+                        </div>
+                      </div>
+                      {selectedVolunteer?.id === vol.id && <Check size={18} className="text-iosBlue" />}
+                    </button>
+                  ))}
+                </div>
+
                 <button
-                  key={vol.id}
-                  onClick={() => setSelectedVolunteer(vol)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all
-                    ${selectedVolunteer?.id === vol.id ? 'bg-iosBlue/10' : 'bg-iosBg active:bg-iosDivider/20'}`}
+                  onClick={() => { setShowAddPerson(true); setSelectedVolunteer(null); }}
+                  className="w-full py-3 rounded-2xl border-2 border-dashed border-iosBlue/30 text-iosBlue text-[15px] font-semibold flex items-center justify-center gap-2 active:bg-iosBlue/5"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[14px] font-bold"
-                      style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
-                      {vol.first_name.charAt(0)}
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[15px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
-                      {vol.phone && <p className="text-[12px] text-iosGray">{vol.phone}</p>}
-                    </div>
-                  </div>
-                  {selectedVolunteer?.id === vol.id && <Check size={18} className="text-iosBlue" />}
+                  <Plus size={16} /> New Person
                 </button>
-              ))}
-            </div>
 
-            <button
-              disabled={!selectedVolunteer || isWorking}
-              onClick={handleAssignNew}
-              className="w-full py-4 rounded-2xl bg-iosBlue text-white text-[16px] font-bold disabled:opacity-30 active:opacity-80 transition-opacity"
-            >
-              Assign to {selectedVolunteer?.first_name || '...'}
-            </button>
+                <button
+                  disabled={!selectedVolunteer || isWorking}
+                  onClick={handleAssignNew}
+                  className="w-full py-4 rounded-2xl bg-iosBlue text-white text-[16px] font-bold disabled:opacity-30 active:opacity-80 transition-opacity"
+                >
+                  Assign to {selectedVolunteer?.first_name || '...'}
+                </button>
+              </>
+            )}
+
+            {showAddPerson && <InlineAddPerson
+              firstName={newPersonFirst} setFirstName={setNewPersonFirst}
+              lastName={newPersonLast} setLastName={setNewPersonLast}
+              phone={newPersonPhone} setPhone={setNewPersonPhone}
+              address={newPersonAddress} setAddress={setNewPersonAddress}
+              color={newPersonColor} setColor={setNewPersonColor}
+              onCancel={() => setShowAddPerson(false)}
+              onSave={handleSaveNewPerson}
+              saving={addingPerson}
+            />}
           </div>
         )}
 
         {/* ── MOVE from one person ── */}
         {sheetItem && sheetMode === 'move' && moveFrom && (
           <div className="space-y-4 pb-4">
-            <button onClick={() => setSheetMode('detail')} className="text-iosBlue text-[15px] font-semibold">← Back</button>
+            <button onClick={() => { setSheetMode('detail'); setShowAddPerson(false); }} className="text-iosBlue text-[15px] font-semibold">← Back</button>
             <h3 className="text-[18px] font-bold text-black">
               Move {moveFrom.volunteerFirstName}'s {sheetItem.name}
             </h3>
 
-            {moveFrom.quantity_assigned > 1 && (
-              <div className="space-y-2">
-                <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest">How many?</p>
-                <QtyPills
-                  max={moveFrom.quantity_assigned}
-                  value={moveQty}
-                  onChange={setMoveQty}
-                />
-              </div>
-            )}
-
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-iosGray/40" size={16} />
-              <input
-                autoFocus
-                className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-iosBg outline-none text-[16px]"
-                placeholder="Move to..."
-                value={volSearch}
-                onChange={e => setVolSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1">
-              {filteredVolunteers
-                .filter(v => v.id !== moveFrom.volunteerId)
-                .map(vol => (
-                  <button
-                    key={vol.id}
-                    onClick={() => setSelectedVolunteer(vol)}
-                    className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all
-                      ${selectedVolunteer?.id === vol.id ? 'bg-iosBlue/10' : 'bg-iosBg active:bg-iosDivider/20'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[14px] font-bold"
-                        style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
-                        {vol.first_name.charAt(0)}
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[15px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
-                        {vol.phone && <p className="text-[12px] text-iosGray">{vol.phone}</p>}
-                      </div>
-                    </div>
-                    {selectedVolunteer?.id === vol.id && <Check size={18} className="text-iosBlue" />}
-                  </button>
-                ))}
-            </div>
-
-            {/* After-this preview */}
-            {afterPreview && (
-              <div className="bg-iosBg rounded-2xl p-4 space-y-1 border border-iosDivider/20">
-                <p className="text-[11px] font-bold text-iosGray uppercase tracking-widest mb-2">After this</p>
-                {afterPreview.fromRemaining > 0 ? (
-                  <p className="text-[14px] text-black">
-                    <span className="font-bold">{moveFrom.volunteerFirstName}</span> keeps{' '}
-                    <span className="font-bold text-iosBlue">×{afterPreview.fromRemaining}</span>
-                  </p>
-                ) : (
-                  <p className="text-[14px] text-black">
-                    <span className="font-bold">{moveFrom.volunteerFirstName}</span>{' '}
-                    <span className="text-[#34C759] font-semibold">· done ✓</span>
-                  </p>
+            {!showAddPerson && (
+              <>
+                {moveFrom.quantity_assigned > 1 && (
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest">How many?</p>
+                    <QtyPills
+                      max={moveFrom.quantity_assigned}
+                      value={moveQty}
+                      onChange={setMoveQty}
+                    />
+                  </div>
                 )}
-                <p className="text-[14px] text-black">
-                  <span className="font-bold">{afterPreview.toName}</span> gets{' '}
-                  <span className="font-bold text-iosBlue">×{afterPreview.toTotal}</span>
-                </p>
-              </div>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 text-iosGray/40" size={16} />
+                  <input
+                    autoFocus
+                    className="w-full pl-9 pr-4 py-2.5 rounded-[12px] bg-iosBg outline-none text-[16px]"
+                    placeholder="Move to..."
+                    value={volSearch}
+                    onChange={e => setVolSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  {filteredVolunteers
+                    .filter(v => v.id !== moveFrom.volunteerId)
+                    .map(vol => (
+                      <button
+                        key={vol.id}
+                        onClick={() => setSelectedVolunteer(vol)}
+                        className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all
+                          ${selectedVolunteer?.id === vol.id ? 'bg-iosBlue/10' : 'bg-iosBg active:bg-iosDivider/20'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[14px] font-bold"
+                            style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
+                            {vol.first_name.charAt(0)}
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[15px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
+                            {vol.phone && <p className="text-[12px] text-iosGray">{vol.phone}</p>}
+                          </div>
+                        </div>
+                        {selectedVolunteer?.id === vol.id && <Check size={18} className="text-iosBlue" />}
+                      </button>
+                    ))}
+                </div>
+
+                <button
+                  onClick={() => { setShowAddPerson(true); setSelectedVolunteer(null); }}
+                  className="w-full py-3 rounded-2xl border-2 border-dashed border-iosBlue/30 text-iosBlue text-[15px] font-semibold flex items-center justify-center gap-2 active:bg-iosBlue/5"
+                >
+                  <Plus size={16} /> New Person
+                </button>
+
+                {/* After-this preview */}
+                {afterPreview && (
+                  <div className="bg-iosBg rounded-2xl p-4 space-y-1 border border-iosDivider/20">
+                    <p className="text-[11px] font-bold text-iosGray uppercase tracking-widest mb-2">After this</p>
+                    {afterPreview.fromRemaining > 0 ? (
+                      <p className="text-[14px] text-black">
+                        <span className="font-bold">{moveFrom.volunteerFirstName}</span> keeps{' '}
+                        <span className="font-bold text-iosBlue">×{afterPreview.fromRemaining}</span>
+                      </p>
+                    ) : (
+                      <p className="text-[14px] text-black">
+                        <span className="font-bold">{moveFrom.volunteerFirstName}</span>{' '}
+                        <span className="text-[#34C759] font-semibold">· done ✓</span>
+                      </p>
+                    )}
+                    <p className="text-[14px] text-black">
+                      <span className="font-bold">{afterPreview.toName}</span> gets{' '}
+                      <span className="font-bold text-iosBlue">×{afterPreview.toTotal}</span>
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  disabled={!selectedVolunteer || isWorking}
+                  onClick={handleTransfer}
+                  className="w-full py-4 rounded-2xl bg-iosBlue text-white text-[16px] font-bold disabled:opacity-30 active:opacity-80 transition-opacity"
+                >
+                  Confirm Move →
+                </button>
+              </>
             )}
 
-            <button
-              disabled={!selectedVolunteer || isWorking}
-              onClick={handleTransfer}
-              className="w-full py-4 rounded-2xl bg-iosBlue text-white text-[16px] font-bold disabled:opacity-30 active:opacity-80 transition-opacity"
-            >
-              Confirm Move →
-            </button>
+            {showAddPerson && <InlineAddPerson
+              firstName={newPersonFirst} setFirstName={setNewPersonFirst}
+              lastName={newPersonLast} setLastName={setNewPersonLast}
+              phone={newPersonPhone} setPhone={setNewPersonPhone}
+              address={newPersonAddress} setAddress={setNewPersonAddress}
+              color={newPersonColor} setColor={setNewPersonColor}
+              onCancel={() => setShowAddPerson(false)}
+              onSave={handleSaveNewPerson}
+              saving={addingPerson}
+            />}
           </div>
         )}
       </BottomSheet>
