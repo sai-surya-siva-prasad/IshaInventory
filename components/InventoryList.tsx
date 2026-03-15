@@ -168,6 +168,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [volSearch, setVolSearch] = useState('');
   const [isWorking, setIsWorking] = useState(false);
 
+  // Quantity for assign-new flow
+  const [assignQty, setAssignQty] = useState(1);
+
   // Inline add-person form (inside assign/move sheet)
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [newPersonFirst, setNewPersonFirst] = useState('');
@@ -237,6 +240,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     setSelectedVolunteer(null);
     setVolSearch('');
     setShowAddPerson(false);
+    setAssignQty(1);
   };
 
   const openMove = (a: Assignment) => {
@@ -255,6 +259,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     setSelectedVolunteer(null);
     setVolSearch('');
     setShowAddPerson(false);
+    setAssignQty(1);
     setNewPersonFirst(''); setNewPersonLast('');
     setNewPersonPhone(''); setNewPersonAddress('');
     setNewPersonColor(COLORS[0]);
@@ -286,7 +291,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
     if (!sheetItem || !selectedVolunteer || isWorking) return;
     setIsWorking(true);
     try {
-      await onAssign(sheetItem.id, selectedVolunteer.id, 1);
+      await onAssign(sheetItem.id, selectedVolunteer.id, assignQty);
       closeSheet();
     } finally {
       setIsWorking(false);
@@ -598,6 +603,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
 
             {!showAddPerson && (
               <>
+                {sheetAvailQty > 1 && (
+                  <div className="space-y-2">
+                    <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest">How many?</p>
+                    <QtyPills max={sheetAvailQty} value={assignQty} onChange={setAssignQty} />
+                  </div>
+                )}
+
                 <div className="relative">
                   <Search className="absolute left-3 top-2.5 text-iosGray/40" size={16} />
                   <input
@@ -610,7 +622,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  {filteredVolunteers.map(vol => (
+                  {filteredVolunteers
+                  .filter(v => !sheetItemAssignments.some(a => a.volunteerId === v.id))
+                  .map(vol => (
                     <button
                       key={vol.id}
                       onClick={() => setSelectedVolunteer(vol)}
@@ -644,7 +658,9 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                   onClick={handleAssignNew}
                   className="w-full py-4 rounded-2xl bg-iosBlue text-white text-[16px] font-bold disabled:opacity-30 active:opacity-80 transition-opacity"
                 >
-                  Assign to {selectedVolunteer?.first_name || '...'}
+                  {selectedVolunteer
+                    ? `Assign ×${assignQty} to ${selectedVolunteer.first_name}`
+                    : 'Select a person'}
                 </button>
               </>
             )}
