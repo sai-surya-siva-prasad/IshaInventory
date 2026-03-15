@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Volunteer, Assignment, Item } from '../types';
-import { Search, Plus, Phone, Trash2, MapPin, User, ChevronRight, Edit3 } from 'lucide-react';
+import { Search, Plus, Phone, Trash2, MapPin, ChevronRight, Edit3, RotateCcw } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -15,19 +15,27 @@ interface VolunteerListProps {
   onReturnItem: (assignmentId: string) => void;
 }
 
-const getAvatarColor = (name: string) => {
-  const colors = [
-    'bg-blue-100 text-blue-600', 
-    'bg-purple-100 text-purple-600', 
-    'bg-pink-100 text-pink-600', 
-    'bg-indigo-100 text-indigo-600', 
-    'bg-orange-100 text-orange-600',
-    'bg-teal-100 text-teal-600'
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-};
+const COLORS = [
+  '#007AFF', '#FF6B35', '#34C759', '#AF52DE',
+  '#FF3B30', '#00B4A0', '#FF9500', '#5856D6',
+];
+
+const ColorPicker: React.FC<{ value: string; onChange: (c: string) => void }> = ({ value, onChange }) => (
+  <div className="flex gap-2 flex-wrap">
+    {COLORS.map(c => (
+      <button
+        key={c}
+        onClick={() => onChange(c)}
+        className="w-8 h-8 rounded-full transition-transform active:scale-90"
+        style={{
+          background: c,
+          boxShadow: value === c ? `0 0 0 3px white, 0 0 0 5px ${c}` : undefined,
+          transform: value === c ? 'scale(1.15)' : undefined,
+        }}
+      />
+    ))}
+  </div>
+);
 
 export const VolunteerList: React.FC<VolunteerListProps> = ({
   volunteers,
@@ -42,50 +50,40 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  
-  // Add new member form state
+
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newAddress, setNewAddress] = useState('');
+  const [newColor, setNewColor] = useState(COLORS[0]);
 
-  // Edit member form state
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editAddress, setEditAddress] = useState('');
+  const [editColor, setEditColor] = useState(COLORS[0]);
 
-  const filteredVolunteers = volunteers.filter(v => 
+  const filteredVolunteers = volunteers.filter(v =>
     `${v.first_name} ${v.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.phone?.includes(searchTerm) ||
-    v.address?.toLowerCase().includes(searchTerm.toLowerCase())
+    v.phone?.includes(searchTerm)
   );
 
-  const activeAssignments = selectedVolunteer 
+  const activeAssignments = selectedVolunteer
     ? assignments.filter(a => a.volunteerId === selectedVolunteer.id)
     : [];
 
   const handleSave = () => {
     if (!newFirstName.trim() || !newLastName.trim()) return;
-    // We omit ID here to let Supabase generate a proper UUID
-    onAddVolunteer({ 
-      first_name: newFirstName.trim(), 
+    onAddVolunteer({
+      first_name: newFirstName.trim(),
       last_name: newLastName.trim(),
       phone: newPhone.trim(),
-      address: newAddress.trim()
+      address: newAddress.trim(),
+      color: newColor,
     });
-    setNewFirstName(''); 
-    setNewLastName(''); 
-    setNewPhone(''); 
-    setNewAddress('');
+    setNewFirstName(''); setNewLastName(''); setNewPhone(''); setNewAddress('');
+    setNewColor(COLORS[0]);
     setIsAddOpen(false);
-  };
-
-  const handleDeleteProfile = () => {
-    if (selectedVolunteer && confirm(`Delete profile for "${selectedVolunteer.first_name} ${selectedVolunteer.last_name}"?`)) {
-      onDeleteVolunteer(selectedVolunteer.id);
-      setSelectedVolunteer(null);
-    }
   };
 
   const openEditModal = () => {
@@ -94,253 +92,221 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
     setEditLastName(selectedVolunteer.last_name);
     setEditPhone(selectedVolunteer.phone || '');
     setEditAddress(selectedVolunteer.address || '');
+    setEditColor(selectedVolunteer.color || COLORS[0]);
     setIsEditOpen(true);
   };
 
   const handleSaveEdit = () => {
     if (!selectedVolunteer || !editFirstName.trim() || !editLastName.trim()) return;
-    onUpdateVolunteer({
+    const updated = {
       ...selectedVolunteer,
       first_name: editFirstName.trim(),
       last_name: editLastName.trim(),
       phone: editPhone.trim(),
-      address: editAddress.trim()
-    });
+      address: editAddress.trim(),
+      color: editColor,
+    };
+    onUpdateVolunteer(updated);
     setIsEditOpen(false);
-    setSelectedVolunteer({
-      ...selectedVolunteer,
-      first_name: editFirstName.trim(),
-      last_name: editLastName.trim(),
-      phone: editPhone.trim(),
-      address: editAddress.trim()
-    });
+    setSelectedVolunteer(updated);
+  };
+
+  const handleDelete = () => {
+    if (selectedVolunteer && confirm(`Delete profile for "${selectedVolunteer.first_name} ${selectedVolunteer.last_name}"?`)) {
+      onDeleteVolunteer(selectedVolunteer.id);
+      setSelectedVolunteer(null);
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-iosGray/60" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search people..." 
-            className="w-full pl-11 pr-4 py-3 rounded-[14px] border border-iosDivider/20 bg-white shadow-sm text-[17px] focus:outline-none placeholder-iosGray/50 transition-all"
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-iosGray/50" size={18} />
+          <input
+            type="text"
+            placeholder="Search people..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-[12px] bg-[#E3E3E8] text-[17px] focus:outline-none placeholder-[#8E8E93]"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
-          onClick={() => setIsAddOpen(true)} 
-          className="w-12 h-12 bg-iosBlue text-white rounded-[14px] flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+        <button
+          onClick={() => setIsAddOpen(true)}
+          className="w-10 h-10 bg-iosBlue text-white rounded-full flex items-center justify-center shadow-md active:scale-90 transition-transform"
         >
-          <Plus size={26} />
+          <Plus size={24} />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
-        {filteredVolunteers.length > 0 ? filteredVolunteers.map((vol) => {
-          const heldAssignments = assignments.filter(a => a.volunteerId === vol.id);
-          const totalUnits = heldAssignments.reduce((sum, a) => sum + a.quantity_assigned, 0);
-          const fullName = `${vol.first_name} ${vol.last_name}`;
-          const initials = `${vol.first_name.charAt(0)}${vol.last_name.charAt(0)}`.toUpperCase();
-          
-          return (
-            <div 
-              key={vol.id} 
-              onClick={() => setSelectedVolunteer(vol)}
-              className="group bg-white rounded-2xl border border-iosDivider/10 p-5 shadow-sm hover:shadow-md active:bg-iosBg transition-all cursor-pointer relative"
-            >
-              {totalUnits > 0 && (
-                <div className="absolute top-4 right-4 bg-iosBlue text-white text-[11px] font-bold px-2 py-1 rounded-full shadow-sm z-10">
-                  {totalUnits} Units
-                </div>
-              )}
+      <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-iosDivider/10">
+        {filteredVolunteers.length > 0 ? filteredVolunteers.map((vol, idx) => {
+          const held = assignments.filter(a => a.volunteerId === vol.id);
+          const totalUnits = held.reduce((s, a) => s + a.quantity_assigned, 0);
+          const color = vol.color || '#007AFF';
 
-              <div className="flex items-start gap-4">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold shadow-inner shrink-0 ${getAvatarColor(fullName)}`}>
-                  {initials}
-                </div>
-                <div className="flex-1 min-w-0 pr-4">
-                  <h3 className="text-[17px] font-bold text-black truncate">{fullName}</h3>
-                  <div className="flex flex-col gap-1 mt-1.5">
-                    {vol.phone && (
-                      <div className="flex items-center gap-2 text-[13px] text-iosGray">
-                        <Phone size={12} className="shrink-0 text-iosBlue/60" />
-                        <span className="truncate">{vol.phone}</span>
-                      </div>
-                    )}
-                    {heldAssignments.length > 0 && (
-                      <div className="text-[12px] font-bold text-iosBlue mt-1">
-                         Holding {heldAssignments.length} different items
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="self-center text-iosDivider">
-                  <ChevronRight size={20} />
+          return (
+            <button
+              key={vol.id}
+              onClick={() => setSelectedVolunteer(vol)}
+              className={`w-full flex items-center gap-4 px-4 py-4 text-left active:bg-iosBg transition-colors
+                ${idx < filteredVolunteers.length - 1 ? 'border-b border-iosDivider/10' : ''}`}
+            >
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-[17px] font-bold shrink-0"
+                style={{ background: color + '20', color }}>
+                {vol.first_name.charAt(0)}{vol.last_name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[16px] font-bold text-black leading-tight">
+                  {vol.first_name} {vol.last_name}
+                </p>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {vol.phone && (
+                    <span className="text-[13px] text-iosGray">{vol.phone}</span>
+                  )}
+                  {totalUnits > 0 && (
+                    <span className="text-[12px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: color + '18', color }}>
+                      {totalUnits} unit{totalUnits > 1 ? 's' : ''}
+                    </span>
+                  )}
                 </div>
               </div>
-            </div>
+              <ChevronRight size={16} className="text-iosDivider shrink-0" />
+            </button>
           );
         }) : (
-          <div className="col-span-full py-24 text-center opacity-40">
-            <p className="text-iosGray text-[17px] font-medium">No members found</p>
+          <div className="py-16 text-center text-iosGray opacity-40">
+            <p className="text-[16px] font-medium">No people found</p>
           </div>
         )}
       </div>
 
-      <Modal isOpen={!!selectedVolunteer} onClose={() => setSelectedVolunteer(null)} title="Member Profile">
-        <div className="space-y-6">
-          <div className="text-center relative">
-            <button 
-              onClick={openEditModal}
-              className="absolute top-0 right-0 w-10 h-10 bg-iosBlue/10 rounded-full flex items-center justify-center text-iosBlue active:bg-iosBlue/20 transition-colors"
-            >
-              <Edit3 size={18} />
-            </button>
-            <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 text-[28px] font-bold shadow-md ${selectedVolunteer ? getAvatarColor(`${selectedVolunteer.first_name} ${selectedVolunteer.last_name}`) : ''}`}>
-              {selectedVolunteer?.first_name.charAt(0)}{selectedVolunteer?.last_name.charAt(0)}
+      {/* Volunteer detail modal */}
+      <Modal isOpen={!!selectedVolunteer} onClose={() => setSelectedVolunteer(null)} title="Member">
+        {selectedVolunteer && (
+          <div className="space-y-5">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-3xl flex items-center justify-center text-[24px] font-bold shrink-0"
+                style={{ background: (selectedVolunteer.color || '#007AFF') + '20', color: selectedVolunteer.color || '#007AFF' }}>
+                {selectedVolunteer.first_name.charAt(0)}{selectedVolunteer.last_name.charAt(0)}
+              </div>
+              <div className="flex-1">
+                <h4 className="text-[20px] font-bold text-black">
+                  {selectedVolunteer.first_name} {selectedVolunteer.last_name}
+                </h4>
+                {selectedVolunteer.phone && (
+                  <a href={`tel:${selectedVolunteer.phone}`}
+                    className="inline-flex items-center gap-1.5 mt-1 font-semibold text-[14px]"
+                    style={{ color: selectedVolunteer.color || '#007AFF' }}>
+                    <Phone size={13} fill="currentColor" />
+                    {selectedVolunteer.phone}
+                  </a>
+                )}
+                {selectedVolunteer.address && (
+                  <div className="flex items-center gap-1.5 mt-1 text-iosGray text-[13px]">
+                    <MapPin size={12} />
+                    {selectedVolunteer.address}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={openEditModal}
+                className="w-9 h-9 rounded-full flex items-center justify-center bg-iosBg text-iosBlue active:bg-iosDivider/30"
+              >
+                <Edit3 size={16} />
+              </button>
             </div>
-            <h4 className="text-[22px] font-bold text-black tracking-tight">
-              {selectedVolunteer?.first_name} {selectedVolunteer?.last_name}
-            </h4>
-            {selectedVolunteer?.phone && (
-              <a href={`tel:${selectedVolunteer.phone}`} className="inline-flex items-center gap-1.5 mt-2 text-iosBlue font-semibold text-[15px]">
-                <Phone size={14} fill="currentColor" />
-                {selectedVolunteer.phone}
-              </a>
-            )}
-            {selectedVolunteer?.address && (
-              <div className="flex items-center justify-center gap-1.5 mt-2 text-iosGray text-[14px]">
-                <MapPin size={14} />
-                <span>{selectedVolunteer.address}</span>
-              </div>
-            )}
-          </div>
 
-          <div className="space-y-3">
-            <h5 className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Items Held</h5>
-            {activeAssignments.length > 0 ? (
-              <div className="bg-iosBg/40 rounded-2xl overflow-hidden divide-y divide-white border border-iosDivider/10">
-                {activeAssignments.map((a) => {
-                  const item = items.find(i => i.id === a.itemId);
-                  return (
-                    <div key={a.id} className="flex justify-between items-center px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm text-iosBlue font-bold text-[15px]">
-                          {a.quantity_assigned}
+            {/* Items held */}
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold text-iosGray uppercase tracking-widest px-1">
+                Items Held {activeAssignments.length > 0 && `(${activeAssignments.length})`}
+              </p>
+              {activeAssignments.length > 0 ? (
+                <div className="space-y-2">
+                  {activeAssignments.map(a => {
+                    const item = items.find(i => i.id === a.itemId);
+                    const color = selectedVolunteer.color || '#007AFF';
+                    return (
+                      <div key={a.id} className="flex items-center justify-between px-4 py-3 rounded-2xl"
+                        style={{ background: color + '10', border: `1px solid ${color}25` }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-[13px] font-bold"
+                            style={{ background: color + '25', color }}>
+                            ×{a.quantity_assigned}
+                          </div>
+                          <div>
+                            <p className="text-[14px] font-semibold text-black">{item?.name || 'Unknown'}</p>
+                            <p className="text-[11px] text-iosGray uppercase font-medium">{item?.category || ''}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[15px] font-semibold text-black leading-none">{item?.name || 'Unknown Item'}</p>
-                          <p className="text-[11px] text-iosGray mt-1 uppercase font-medium">{item?.category || 'General'}</p>
-                        </div>
+                        <button
+                          onClick={() => onReturnItem(a.id)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center bg-[#34C759]/10 text-[#34C759] active:bg-[#34C759]/20"
+                        >
+                          <RotateCcw size={14} />
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => onReturnItem(a.id)}
-                        className="w-9 h-9 text-[#FF3B30] active:bg-red-100 rounded-full flex items-center justify-center transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="bg-iosBg/20 p-8 rounded-2xl text-center border-2 border-dashed border-iosDivider/10">
-                <p className="text-iosGray/60 text-[14px]">No items currently assigned.</p>
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-6 rounded-2xl text-center border-2 border-dashed border-iosDivider/20">
+                  <p className="text-[14px] text-iosGray/60">Nothing assigned</p>
+                </div>
+              )}
+            </div>
 
-          <div className="pt-2">
-            <button 
-              onClick={handleDeleteProfile}
-              className="w-full py-4 text-[#FF3B30] text-[16px] font-bold active:bg-red-50 rounded-2xl border border-[#FF3B30]/10 transition-colors"
+            <button
+              onClick={handleDelete}
+              className="w-full py-3.5 text-[#FF3B30] text-[15px] font-bold rounded-2xl border border-[#FF3B30]/10 active:bg-red-50 transition-colors"
             >
               Delete Profile
             </button>
           </div>
-        </div>
+        )}
       </Modal>
 
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="New Member Profile">
-        <div className="space-y-4">
-           <div className="grid grid-cols-2 gap-3">
-             <input 
-               className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
-               value={newFirstName}
-               onChange={(e) => setNewFirstName(e.target.value)}
-               placeholder="First Name"
-             />
-             <input 
-               className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
-               value={newLastName}
-               onChange={(e) => setNewLastName(e.target.value)}
-               placeholder="Last Name"
-             />
-           </div>
-           <input 
-             className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
-             value={newPhone}
-             onChange={(e) => setNewPhone(e.target.value)}
-             placeholder="Phone Number"
-             type="tel"
-           />
-           <textarea 
-             className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] resize-none"
-             value={newAddress}
-             onChange={(e) => setNewAddress(e.target.value)}
-             placeholder="Address (optional)"
-             rows={2}
-           />
-           <Button fullWidth onClick={handleSave} disabled={!newFirstName || !newLastName}>
-             Create Profile
-           </Button>
-        </div>
-      </Modal>
-
-      {/* Edit Member Modal */}
-      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Member Profile">
+      {/* Add volunteer modal */}
+      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="New Member">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">First Name</label>
-              <input 
-                className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
-                value={editFirstName}
-                onChange={(e) => setEditFirstName(e.target.value)}
-                placeholder="First Name"
-              />
-            </div>
-            <div>
-              <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Last Name</label>
-              <input 
-                className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
-                value={editLastName}
-                onChange={(e) => setEditLastName(e.target.value)}
-                placeholder="Last Name"
-              />
-            </div>
+            <input className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
+              value={newFirstName} onChange={e => setNewFirstName(e.target.value)} placeholder="First Name" />
+            <input className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
+              value={newLastName} onChange={e => setNewLastName(e.target.value)} placeholder="Last Name" />
           </div>
-          <div>
-            <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Phone Number</label>
-            <input 
-              className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20"
-              value={editPhone}
-              onChange={(e) => setEditPhone(e.target.value)}
-              placeholder="Phone Number"
-              type="tel"
-            />
+          <input className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
+            value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="Phone Number" type="tel" />
+          <textarea className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] resize-none"
+            value={newAddress} onChange={e => setNewAddress(e.target.value)} placeholder="Address (optional)" rows={2} />
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Colour</p>
+            <ColorPicker value={newColor} onChange={setNewColor} />
           </div>
-          <div>
-            <label className="text-[12px] font-medium text-iosGray uppercase tracking-wider block mb-2 px-1">Address</label>
-            <textarea 
-              className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] focus:ring-2 focus:ring-iosBlue/20 resize-none"
-              value={editAddress}
-              onChange={(e) => setEditAddress(e.target.value)}
-              placeholder="Enter address"
-              rows={3}
-            />
+          <Button fullWidth onClick={handleSave} disabled={!newFirstName || !newLastName}>
+            Create Member
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Edit volunteer modal */}
+      <Modal isOpen={isEditOpen} onClose={() => setIsEditOpen(false)} title="Edit Member">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <input className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
+              value={editFirstName} onChange={e => setEditFirstName(e.target.value)} placeholder="First Name" />
+            <input className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
+              value={editLastName} onChange={e => setEditLastName(e.target.value)} placeholder="Last Name" />
+          </div>
+          <input className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px]"
+            value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone Number" type="tel" />
+          <textarea className="w-full px-4 py-3.5 rounded-[12px] bg-iosBg outline-none text-[17px] resize-none"
+            value={editAddress} onChange={e => setEditAddress(e.target.value)} placeholder="Address" rows={2} />
+          <div className="space-y-2">
+            <p className="text-[12px] font-bold text-iosGray uppercase tracking-widest px-1">Colour</p>
+            <ColorPicker value={editColor} onChange={setEditColor} />
           </div>
           <Button fullWidth onClick={handleSaveEdit} disabled={!editFirstName || !editLastName}>
             Save Changes
