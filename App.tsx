@@ -58,8 +58,8 @@ const App: React.FC = () => {
     return () => { if (subscription) subscription.unsubscribe(); };
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const [i, v, a, c] = await Promise.all([
         StorageService.getItems(),
@@ -74,7 +74,7 @@ const App: React.FC = () => {
     } catch {
       showToast('Sync error', 'error');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -94,7 +94,7 @@ const App: React.FC = () => {
 
   const handleAssign = async (itemId: string, volunteerId: string, quantity: number) => {
     await StorageService.saveAssignment({ itemId, volunteerId, quantity_assigned: quantity });
-    await loadData();
+    await loadData(true);
     showToast('Assigned');
   };
 
@@ -106,13 +106,13 @@ const App: React.FC = () => {
     quantityToMove: number
   ) => {
     await StorageService.transferAssignment(fromAssignmentId, itemId, fromCurrentQty, toVolunteerId, quantityToMove);
-    await loadData();
+    await loadData(true);
     showToast('Moved');
   };
 
   const handleReturn = async (assignmentId: string) => {
     await StorageService.returnAssignment(assignmentId);
-    await loadData();
+    await loadData(true);
     showToast('Returned');
   };
 
@@ -121,13 +121,13 @@ const App: React.FC = () => {
     if (assignToVolunteerId && created?.id) {
       await StorageService.saveAssignment({ itemId: created.id, volunteerId: assignToVolunteerId, quantity_assigned: assignQty || 1 });
     }
-    await loadData();
+    await loadData(true);
   };
 
   const handleDeleteItem = async (id: string) => {
     try {
       await StorageService.deleteItem(id);
-      await loadData();
+      await loadData(true);
       showToast('Item removed');
     } catch {
       showToast('Failed to remove item', 'error');
@@ -163,24 +163,24 @@ const App: React.FC = () => {
 
   const handleAddVolunteer = async (v: Partial<Volunteer>) => {
     await StorageService.saveVolunteer(v);
-    await loadData();
+    await loadData(true);
   };
 
   const handleCreateVolunteer = async (v: Partial<Volunteer>): Promise<Volunteer> => {
     const created = await StorageService.saveVolunteer(v);
-    await loadData();
+    await loadData(true);
     return created;
   };
 
   const handleUpdateVolunteer = async (v: Volunteer) => {
     await StorageService.saveVolunteer(v);
-    await loadData();
+    await loadData(true);
     showToast('Member updated');
   };
 
   const handleDeleteVolunteer = async (id: string) => {
     await StorageService.deleteVolunteer(id);
-    await loadData();
+    await loadData(true);
   };
 
   // ── Profile ──
