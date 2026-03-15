@@ -179,7 +179,7 @@ export const StorageService = {
     return [];
   },
 
-  async saveVolunteer(v: Partial<Volunteer>) {
+  async saveVolunteer(v: Partial<Volunteer>): Promise<Volunteer> {
     if (supabase) {
       const { data: { user } } = await supabase.auth.getUser();
       const payload: any = {
@@ -193,9 +193,15 @@ export const StorageService = {
 
       if (v.id) payload.id = v.id;
 
-      const { error } = await supabase.from('volunteers').upsert(payload);
+      const { data, error } = await supabase
+        .from('volunteers')
+        .upsert(payload)
+        .select()
+        .single();
       if (error) throw error;
+      return data;
     }
+    throw new Error('Supabase not configured');
   },
 
   async deleteVolunteer(id: string) {

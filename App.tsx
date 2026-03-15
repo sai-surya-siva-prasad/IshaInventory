@@ -163,6 +163,12 @@ const App: React.FC = () => {
     await loadData();
   };
 
+  const handleCreateVolunteer = async (v: Partial<Volunteer>): Promise<Volunteer> => {
+    const created = await StorageService.saveVolunteer(v);
+    await loadData();
+    return created;
+  };
+
   const handleUpdateVolunteer = async (v: Volunteer) => {
     await StorageService.saveVolunteer(v);
     await loadData();
@@ -249,6 +255,7 @@ const App: React.FC = () => {
                   onAddCategory={handleAddCategory}
                   onUpdateCategory={handleUpdateCategory}
                   onDeleteCategory={handleDeleteCategory}
+                  onCreateVolunteer={handleCreateVolunteer}
                 />
               </div>
             )}
