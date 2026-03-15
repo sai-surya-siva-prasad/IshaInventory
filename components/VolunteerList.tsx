@@ -13,6 +13,7 @@ interface VolunteerListProps {
   onUpdateVolunteer: (volunteer: Volunteer) => void;
   onDeleteVolunteer: (volunteerId: string) => void;
   onReturnItem: (assignmentId: string) => void;
+  addTrigger?: number;
 }
 
 const COLORS = [
@@ -44,11 +45,16 @@ export const VolunteerList: React.FC<VolunteerListProps> = ({
   onAddVolunteer,
   onUpdateVolunteer,
   onDeleteVolunteer,
-  onReturnItem
+  onReturnItem,
+  addTrigger,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVolunteer, setSelectedVolunteer] = useState<Volunteer | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (addTrigger && addTrigger > 0) setIsAddOpen(true);
+  }, [addTrigger]);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
   const [newFirstName, setNewFirstName] = useState('');

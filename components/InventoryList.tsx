@@ -19,6 +19,7 @@ interface InventoryListProps {
   onUpdateCategory?: (id: string, name: string) => Promise<void>;
   onDeleteCategory?: (id: string) => Promise<void>;
   onCreateVolunteer: (v: Partial<Volunteer>) => Promise<Volunteer>;
+  addTrigger?: number;
 }
 
 interface InlineAddPersonProps {
@@ -155,6 +156,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   onUpdateCategory,
   onDeleteCategory,
   onCreateVolunteer,
+  addTrigger,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -192,6 +194,13 @@ export const InventoryList: React.FC<InventoryListProps> = ({
   const [catAdding, setCatAdding] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+
+  React.useEffect(() => {
+    if (addTrigger && addTrigger > 0) {
+      setNewItemCategoryId(categories[0]?.id || '');
+      setIsAddModalOpen(true);
+    }
+  }, [addTrigger]);
 
   const getItemAssignments = (itemId: string) =>
     assignments.filter(a => a.itemId === itemId);
@@ -384,7 +393,7 @@ export const InventoryList: React.FC<InventoryListProps> = ({
               ? 'bg-iosBlue text-white border-iosBlue shadow-sm'
               : 'bg-white text-black border-iosDivider/40'}`}
         >
-          {n === max ? `${n} All` : n}
+          {n}
         </button>
       ))}
     </div>
@@ -622,28 +631,32 @@ export const InventoryList: React.FC<InventoryListProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  {filteredVolunteers
-                  .filter(v => !sheetItemAssignments.some(a => a.volunteerId === v.id))
-                  .map(vol => (
-                    <button
-                      key={vol.id}
-                      onClick={() => setSelectedVolunteer(vol)}
-                      className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all
-                        ${selectedVolunteer?.id === vol.id ? 'bg-iosBlue/10' : 'bg-iosBg active:bg-iosDivider/20'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[14px] font-bold"
-                          style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
-                          {vol.first_name.charAt(0)}
+                  {filteredVolunteers.map(vol => {
+                    const existing = sheetItemAssignments.find(a => a.volunteerId === vol.id);
+                    return (
+                      <button
+                        key={vol.id}
+                        onClick={() => setSelectedVolunteer(vol)}
+                        className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all
+                          ${selectedVolunteer?.id === vol.id ? 'bg-iosBlue/10' : 'bg-iosBg active:bg-iosDivider/20'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-[14px] font-bold"
+                            style={{ background: (vol.color || '#007AFF') + '25', color: vol.color || '#007AFF' }}>
+                            {vol.first_name.charAt(0)}
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[15px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
+                            {existing
+                              ? <p className="text-[12px] font-semibold" style={{ color: vol.color || '#007AFF' }}>already has ×{existing.quantity_assigned} — will add more</p>
+                              : vol.phone && <p className="text-[12px] text-iosGray">{vol.phone}</p>
+                            }
+                          </div>
                         </div>
-                        <div className="text-left">
-                          <p className="text-[15px] font-semibold text-black">{vol.first_name} {vol.last_name}</p>
-                          {vol.phone && <p className="text-[12px] text-iosGray">{vol.phone}</p>}
-                        </div>
-                      </div>
-                      {selectedVolunteer?.id === vol.id && <Check size={18} className="text-iosBlue" />}
-                    </button>
-                  ))}
+                        {selectedVolunteer?.id === vol.id && <Check size={18} className="text-iosBlue" />}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <button

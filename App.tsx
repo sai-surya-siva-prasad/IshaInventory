@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Users, Settings, LogOut, User, MapPin, Phone, Edit3 } from 'lucide-react';
+import { Users, Settings, LogOut, User, MapPin, Phone, Edit3, Plus } from 'lucide-react';
 import { StorageService, AuthService, supabase } from './services/storage';
 import { Item, Volunteer, Assignment, UserProfile, Category } from './types';
 import { InventoryList } from './components/InventoryList';
@@ -24,6 +24,8 @@ const App: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [inventoryAddTrigger, setInventoryAddTrigger] = useState(0);
+  const [peopleAddTrigger, setPeopleAddTrigger] = useState(0);
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
@@ -256,6 +258,7 @@ const App: React.FC = () => {
                   onUpdateCategory={handleUpdateCategory}
                   onDeleteCategory={handleDeleteCategory}
                   onCreateVolunteer={handleCreateVolunteer}
+                  addTrigger={inventoryAddTrigger}
                 />
               </div>
             )}
@@ -270,6 +273,7 @@ const App: React.FC = () => {
                   onUpdateVolunteer={handleUpdateVolunteer}
                   onDeleteVolunteer={handleDeleteVolunteer}
                   onReturnItem={handleReturn}
+                  addTrigger={peopleAddTrigger}
                 />
               </div>
             )}
@@ -368,6 +372,18 @@ const App: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      {activeTab !== 'settings' && (
+        <button
+          onClick={() => activeTab === 'inventory'
+            ? setInventoryAddTrigger(t => t + 1)
+            : setPeopleAddTrigger(t => t + 1)}
+          className="fixed bottom-[62px] right-5 w-14 h-14 bg-iosBlue text-white rounded-full shadow-xl flex items-center justify-center z-50 active:scale-90 transition-transform"
+          style={{ boxShadow: '0 4px 20px rgba(0,122,255,0.4)' }}
+        >
+          <Plus size={28} />
+        </button>
+      )}
 
       <nav className="fixed bottom-0 left-0 w-full bg-white/90 ios-blur border-t border-iosDivider z-50 safe-bottom">
         <div className="flex h-[49px]">

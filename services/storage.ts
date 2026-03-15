@@ -239,13 +239,31 @@ export const StorageService = {
     return [];
   },
 
+  // Assign quantity to a volunteer. If they already hold this item, adds to their existing quantity.
   async saveAssignment(a: Partial<Assignment>) {
-    if (supabase) {
-      const { data: { user } } = await supabase.auth.getUser();
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data: { user } } = await supabase.auth.getUser();
+    const qty = a.quantity_assigned || 1;
+
+    const { data: existing } = await supabase
+      .from('isha_item_assignments')
+      .select('id, quantity_assigned')
+      .eq('item_id', a.itemId)
+      .eq('volunteer_id', a.volunteerId)
+      .is('returned_at', null)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabase
+        .from('isha_item_assignments')
+        .update({ quantity_assigned: existing.quantity_assigned + qty })
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
       const { error } = await supabase.from('isha_item_assignments').insert({
         item_id: a.itemId,
         volunteer_id: a.volunteerId,
-        quantity_assigned: a.quantity_assigned || 1,
+        quantity_assigned: qty,
         user_id: user?.id
       });
       if (error) throw error;
